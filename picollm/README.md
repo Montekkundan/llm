@@ -11,6 +11,7 @@ This folder teaches the practical bridge to a real chatbot:
 - cloud pretraining when you want your own checkpoint
 - LoRA fine-tuning when you want a classroom-realistic tuning workflow
 - local serving on Mac, Windows, or Linux
+- frontend integration through a Vercel AI SDK app
 
 ## Why this exists next to the from-scratch code
 

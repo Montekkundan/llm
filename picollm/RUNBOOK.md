@@ -189,3 +189,4 @@ uv run python -m picollm.serve.chat_web \
 - [pretrain_cloud/VAST_AI_SETUP.md](/Users/montekkundan/Developer/ML/llm/picollm/pretrain_cloud/VAST_AI_SETUP.md)
 - [sft_lora/README.md](/Users/montekkundan/Developer/ML/llm/picollm/sft_lora/README.md)
 - [serve/README.md](/Users/montekkundan/Developer/ML/llm/picollm/serve/README.md)
+- [../apps/vercel_ai_sdk_chat/README.md](/Users/montekkundan/Developer/ML/llm/apps/vercel_ai_sdk_chat/README.md)
