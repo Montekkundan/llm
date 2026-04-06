@@ -42,6 +42,19 @@ Then open:
 
 `http://127.0.0.1:8008`
 
+## OpenAI-compatible API
+
+This server also exposes:
+
+- `GET /v1/models`
+- `POST /v1/chat/completions`
+
+That makes it usable from clients that expect an OpenAI-style API, including the Vercel AI SDK openai-compatible provider path.
+
+See:
+
+- [apps/vercel_ai_sdk_chat/README.md](/Users/montekkundan/Developer/ML/llm/apps/vercel_ai_sdk_chat/README.md)
+
 ## Quantization
 
 This repo exposes simple quantization flags for serving:

@@ -12,6 +12,8 @@ microllm/artifacts/
 artifacts/
 tmp/
 node_modules/
+.next/
+*.tsbuildinfo
 
 # Virtual environments
 .venv/

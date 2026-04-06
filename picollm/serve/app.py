@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import os
+import time
+import uuid
 from functools import lru_cache
 from pathlib import Path
 
@@ -9,7 +11,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
-from picollm.common import generate_reply, load_generation_bundle
+from picollm.common import generate_reply, load_generation_bundle, stream_reply
 from picollm.common.loading import metadata_for_bundle
 
 
@@ -20,8 +22,12 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     messages: list[ChatMessage]
+    model: str | None = None
     max_new_tokens: int = Field(default=256, ge=1, le=2048)
+    max_tokens: int | None = Field(default=None, ge=1, le=2048)
+    max_completion_tokens: int | None = Field(default=None, ge=1, le=2048)
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
+    top_p: float = Field(default=0.95, ge=0.0, le=1.0)
     stream: bool = False
 
 
@@ -32,6 +38,10 @@ QUANTIZATION = os.environ.get("PICOLLM_QUANTIZATION", "none")
 UI_PATH = Path(__file__).with_name("ui") / "index.html"
 
 app = FastAPI(title="picoLLM Chat App", version="0.1.0")
+
+
+def _resolve_max_new_tokens(request: ChatRequest) -> int:
+    return request.max_completion_tokens or request.max_tokens or request.max_new_tokens
 
 
 @lru_cache(maxsize=1)
@@ -66,32 +76,87 @@ def chat(request: ChatRequest) -> dict[str, object]:
         bundle.model,
         bundle.tokenizer,
         [message.model_dump() for message in request.messages],
-        max_new_tokens=request.max_new_tokens,
+        max_new_tokens=_resolve_max_new_tokens(request),
         temperature=request.temperature,
+        top_p=request.top_p,
     )
     return {"reply": reply}
 
 
-async def _stream_response(reply: str):
-    for chunk in reply.split():
-        yield f"data: {json.dumps({'delta': chunk + ' '})}\n\n"
+async def _stream_openai_response(request: ChatRequest):
+    bundle = _get_bundle()
+    completion_id = f"chatcmpl-{uuid.uuid4().hex[:24]}"
+    created = int(time.time())
+    model_name = request.model or MODEL_NAME
+    yield (
+        "data: "
+        + json.dumps(
+            {
+                "id": completion_id,
+                "object": "chat.completion.chunk",
+                "created": created,
+                "model": model_name,
+                "choices": [{"index": 0, "delta": {"role": "assistant"}, "finish_reason": None}],
+            }
+        )
+        + "\n\n"
+    )
+    for piece in stream_reply(
+        bundle.model,
+        bundle.tokenizer,
+        [message.model_dump() for message in request.messages],
+        max_new_tokens=_resolve_max_new_tokens(request),
+        temperature=request.temperature,
+        top_p=request.top_p,
+    ):
+        if not piece:
+            continue
+        yield (
+            "data: "
+            + json.dumps(
+                {
+                    "id": completion_id,
+                    "object": "chat.completion.chunk",
+                    "created": created,
+                    "model": model_name,
+                    "choices": [{"index": 0, "delta": {"content": piece}, "finish_reason": None}],
+                }
+            )
+            + "\n\n"
+        )
+    yield (
+        "data: "
+        + json.dumps(
+            {
+                "id": completion_id,
+                "object": "chat.completion.chunk",
+                "created": created,
+                "model": model_name,
+                "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
+            }
+        )
+        + "\n\n"
+    )
     yield "data: [DONE]\n\n"
 
 
 @app.post("/v1/chat/completions")
 def openai_chat(request: ChatRequest):
+    if request.stream:
+        return StreamingResponse(_stream_openai_response(request), media_type="text/event-stream")
     bundle = _get_bundle()
     reply = generate_reply(
         bundle.model,
         bundle.tokenizer,
         [message.model_dump() for message in request.messages],
-        max_new_tokens=request.max_new_tokens,
+        max_new_tokens=_resolve_max_new_tokens(request),
         temperature=request.temperature,
+        top_p=request.top_p,
     )
-    if request.stream:
-        return StreamingResponse(_stream_response(reply), media_type="text/event-stream")
     return {
         "id": "chatcmpl-picollm",
         "object": "chat.completion",
+        "created": int(time.time()),
+        "model": request.model or MODEL_NAME,
         "choices": [{"index": 0, "message": {"role": "assistant", "content": reply}, "finish_reason": "stop"}],
     }
