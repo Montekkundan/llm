@@ -1,0 +1,50 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>LLM Course Chat Demo</title>
+    <style>
+      body { font-family: Arial, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+      textarea, input, button { font: inherit; }
+      textarea { width: 100%; min-height: 120px; }
+      #log { white-space: pre-wrap; border: 1px solid #ccc; padding: 1rem; min-height: 180px; }
+      .row { display: flex; gap: 1rem; margin: 1rem 0; }
+      .row > * { flex: 1; }
+    </style>
+  </head>
+  <body>
+    <h1>LLM Course Chat Demo</h1>
+    <p>This UI is a thin client over the FastAPI endpoints.</p>
+    <label>System message</label>
+    <textarea id="system">You are a concise teaching assistant for an LLM course.</textarea>
+    <label>User message</label>
+    <textarea id="user">Explain self-attention in simple terms.</textarea>
+    <div class="row">
+      <label>Temperature <input id="temperature" type="number" step="0.1" value="0.8" /></label>
+      <label>Top-k <input id="topk" type="number" value="8" /></label>
+    </div>
+    <button id="run">Send</button>
+    <h2>Reply</h2>
+    <div id="log"></div>
+    <script>
+      document.getElementById('run').addEventListener('click', async () => {
+        const payload = {
+          messages: [
+            { role: 'system', content: document.getElementById('system').value },
+            { role: 'user', content: document.getElementById('user').value },
+          ],
+          temperature: Number(document.getElementById('temperature').value),
+          top_k: Number(document.getElementById('topk').value),
+          max_new_tokens: 80,
+        };
+        const res = await fetch('/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        document.getElementById('log').textContent = data.reply;
+      });
+    </script>
+  </body>
+</html>
