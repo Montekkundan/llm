@@ -190,3 +190,4 @@ uv run python -m picollm.serve.chat_web \
 - [sft_lora/README.md](/Users/montekkundan/Developer/ML/llm/picollm/sft_lora/README.md)
 - [serve/README.md](/Users/montekkundan/Developer/ML/llm/picollm/serve/README.md)
 - [../apps/vercel_ai_sdk_chat/README.md](/Users/montekkundan/Developer/ML/llm/apps/vercel_ai_sdk_chat/README.md)
+- [../apps/opentui_ai_sdk_chat/README.md](/Users/montekkundan/Developer/ML/llm/apps/opentui_ai_sdk_chat/README.md)

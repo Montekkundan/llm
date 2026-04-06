@@ -64,6 +64,7 @@ For the final lecture sequence:
 - [picollm/pretrain_cloud/VAST_AI_SETUP.md](/Users/montekkundan/Developer/ML/llm/picollm/pretrain_cloud/VAST_AI_SETUP.md)
 - [prompts/real_chatbot_workflow/base_vs_lora_prompts.md](/Users/montekkundan/Developer/ML/llm/prompts/real_chatbot_workflow/base_vs_lora_prompts.md)
 - [apps/vercel_ai_sdk_chat/README.md](/Users/montekkundan/Developer/ML/llm/apps/vercel_ai_sdk_chat/README.md)
+- [apps/opentui_ai_sdk_chat/README.md](/Users/montekkundan/Developer/ML/llm/apps/opentui_ai_sdk_chat/README.md)
 
 ## Reference Repos
 

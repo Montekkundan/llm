@@ -1,0 +1,16 @@
+{
+  "name": "opentui-ai-sdk-chat",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "bun src/index.tsx",
+    "start": "bun src/index.tsx"
+  },
+  "dependencies": {
+    "@ai-sdk/openai-compatible": "^1.0.14",
+    "@opentui/core": "^0.1.97",
+    "@opentui/react": "^0.1.97",
+    "ai": "^5.0.92",
+    "react": "19.2.1"
+  }
+}
