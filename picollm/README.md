@@ -1,0 +1,138 @@
+# picoLLM
+
+`picollm/` is the serious-model track for this course.
+
+Start with [RUNBOOK.md](/Users/montekkundan/Developer/ML/llm/picollm/RUNBOOK.md) if you want the full student-facing execution flow in one place.
+
+The rest of this repo teaches how language models work from scratch.
+
+This folder teaches the practical bridge to a real chatbot:
+
+- cloud pretraining when you want your own checkpoint
+- LoRA fine-tuning when you want a classroom-realistic tuning workflow
+- local serving on Mac, Windows, or Linux
+
+## Why this exists next to the from-scratch code
+
+The tiny model in the teaching notebooks is good for explanation.
+It is not good enough to act like a modern chatbot.
+
+So the course now has two layers:
+
+- `notebooks/` and `scripts/`: concept-first teaching code
+- `picollm/`: serious model workflow for the final demo
+
+## Should we copy nanochat's FP8 path?
+
+No, not for this folder.
+
+`nanochat/fp8.py` exists because nanochat is pushing much harder on throughput and memory efficiency on supported GPU stacks. That is a systems-optimization choice, not a conceptual requirement.
+
+For this course:
+
+- keep `picollm/` simple
+- use standard `transformers` + `peft` + `trl`
+- focus on portable training, serving, and evaluation
+- point students to nanochat after the lecture if they want deeper systems optimization work
+
+In other words: yes, nanochat is much more optimized. That is exactly why it is a good "what to study next" repo after the concepts are already clear.
+
+## Recommended classroom flow
+
+### Path A: Serious chatbot demo on a laptop
+
+Use a small instruct model:
+
+- `Qwen/Qwen2.5-1.5B-Instruct`
+- `Qwen/Qwen2.5-3B-Instruct`
+- `HuggingFaceTB/SmolLM2-1.7B-Instruct`
+
+Then run:
+
+```bash
+uv run python -m picollm.serve.chat_cli \
+  --model Qwen/Qwen2.5-1.5B-Instruct \
+  --device auto
+```
+
+### Path B: Serious fine-tuning demo
+
+```bash
+uv run python -m picollm.sft_lora.prepare_dataset \
+  --output-jsonl artifacts/picollm/sft/train.jsonl
+
+uv run python -m picollm.sft_lora.finetune \
+  --model Qwen/Qwen2.5-1.5B-Instruct \
+  --dataset artifacts/picollm/sft/train.jsonl \
+  --output-dir artifacts/picollm/lora-run \
+  --device auto \
+  --max-steps 200
+```
+
+Then compare:
+
+```bash
+uv run python -m picollm.sft_lora.evaluate \
+  --base-model Qwen/Qwen2.5-1.5B-Instruct \
+  --adapter artifacts/picollm/lora-run \
+  --device auto
+```
+
+### Path C: Full cloud pretraining
+
+Use:
+
+- [Vast.ai instances](https://docs.vast.ai/documentation/instances) for rentable GPUs
+- [Hugging Face Jobs](https://huggingface.co/docs/huggingface_hub/guides/jobs) when you want a managed cloud run tied to the Hub
+
+Typical flow:
+
+1. train tokenizer
+2. train checkpoint in cloud
+3. evaluate
+4. push to Hub
+5. pull checkpoint locally
+6. run local inference on `cuda`, `mps`, or `cpu`
+
+See:
+
+- [pretrain_cloud/README.md](/Users/montekkundan/Developer/ML/llm/picollm/pretrain_cloud/README.md)
+- [sft_lora/README.md](/Users/montekkundan/Developer/ML/llm/picollm/sft_lora/README.md)
+- [serve/README.md](/Users/montekkundan/Developer/ML/llm/picollm/serve/README.md)
+- [HUGGING_FACE_SETUP.md](/Users/montekkundan/Developer/ML/llm/picollm/HUGGING_FACE_SETUP.md)
+- [pretrain_cloud/VAST_AI_SETUP.md](/Users/montekkundan/Developer/ML/llm/picollm/pretrain_cloud/VAST_AI_SETUP.md)
+
+## OS guidance
+
+### macOS
+
+- best local device flag: `mps`
+- ideal use: inference and small LoRA runs
+- full pretraining: use cloud
+
+### Linux with NVIDIA
+
+- best local device flag: `cuda`
+- supports larger local runs
+- optional 4-bit / 8-bit paths for serving and LoRA
+
+### Windows with NVIDIA
+
+- `cuda` works if your PyTorch install matches the driver/toolkit stack
+- if not, fall back to CPU or use WSL2
+
+### CPU-only machines
+
+- use smaller models
+- good for functional demos, not fast training
+
+## This completes the lecture arc
+
+With `picollm/`, the course now covers:
+
+- concepts from first principles
+- a tiny model you can fully understand
+- chat formatting and SFT
+- a serious LoRA fine-tuning path
+- cloud pretraining as a realistic next step
+- local inference and deployment on real hardware
