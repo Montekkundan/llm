@@ -1,6 +1,6 @@
 # LLM From Scratch and Deploy
 
-This repository is the runnable companion to the lecture notes in Obsidian.
+This repository is the runnable companion to the lecture notes at `lectures.montek.dev`.
 
 The course has two layers:
 
@@ -9,7 +9,7 @@ The course has two layers:
 
 ## Start Here
 
-Students should use the lecture notes for the full explanation, then open the linked code from the relevant note.
+Students should use the lecture notes for the full explanation, then open the linked code from the relevant lesson.
 
 ## Student Setup
 
@@ -27,7 +27,7 @@ hf auth login
 
 Then use this workflow:
 
-1. Open the relevant Obsidian lecture note.
+1. Open the relevant lesson on `lectures.montek.dev`.
 2. Read the theory there first.
 3. Open the linked notebook or script from this repo.
 4. For the serious chatbot path, follow `picollm/RUNBOOK.md`.
@@ -81,14 +81,25 @@ For the final lecture sequence:
 
 If you want to cite the reference repos behind the teaching flow, cite both Raschka and Karpathy:
 
-```bibtex
-@misc{raschka_llms_from_scratch,
-  author = {Sebastian Raschka},
-  title = {LLMs-from-scratch},
-  year = {2024},
-  publisher = {GitHub},
-  url = {https://github.com/rasbt/LLMs-from-scratch}
-}
+```yaml
+cff-version: 1.2.0
+message: "If you use this book or its accompanying code, please cite it as follows."
+title: "Build A Large Language Model (From Scratch), Published by Manning, ISBN 978-1633437166"
+abstract: "This book provides a comprehensive, step-by-step guide to implementing a ChatGPT-like large language model from scratch in PyTorch."
+date-released: 2024-09-12
+authors:
+  - family-names: "Raschka"
+    given-names: "Sebastian"
+license: "Apache-2.0"
+url: "https://www.manning.com/books/build-a-large-language-model-from-scratch"
+repository-code: "https://github.com/rasbt/LLMs-from-scratch"
+keywords:
+  - large language models
+  - natural language processing
+  - artificial intelligence
+  - PyTorch
+  - machine learning
+  - deep learning
 ```
 
 ```bibtex
