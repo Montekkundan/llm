@@ -12,6 +12,7 @@ PRETRAIN_BATCH_SIZE="${PICO_PRETRAIN_BATCH_SIZE:-}"
 PRETRAIN_GRAD_ACCUM="${PICO_PRETRAIN_GRAD_ACCUM:-}"
 SFT_BATCH_SIZE="${PICO_SFT_BATCH_SIZE:-}"
 SFT_GRAD_ACCUM="${PICO_SFT_GRAD_ACCUM:-}"
+HF_REPO_ID="${PICO_HF_REPO_ID:-}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -31,13 +32,17 @@ while [[ $# -gt 0 ]]; do
       NPROC_PER_NODE="$2"
       shift 2
       ;;
+    --hf-repo-id)
+      HF_REPO_ID="$2"
+      shift 2
+      ;;
     --device)
       SERVE_DEVICE="$2"
       shift 2
       ;;
     *)
       echo "Unknown argument: $1" >&2
-      echo "Usage: bash picollm/pretrain_cloud/speedrun.sh [--cli|--web] [--preset 2x4090|a100-80gb] [--nproc-per-node N] [--device DEVICE]" >&2
+      echo "Usage: bash picollm/pretrain_cloud/speedrun.sh [--cli|--web] [--preset 2x4090|a100-80gb] [--nproc-per-node N] [--hf-repo-id REPO] [--device DEVICE]" >&2
       exit 1
       ;;
   esac
@@ -57,6 +62,20 @@ if [[ -f "$HOME/.local/bin/env" ]]; then
 fi
 
 uv sync
+
+if [[ -n "$HF_REPO_ID" ]]; then
+  if [[ -n "${HF_TOKEN:-}" ]]; then
+    echo "Using HF_TOKEN from the environment for Hub upload."
+  elif uv run hf auth whoami >/dev/null 2>&1; then
+    echo "Using existing Hugging Face CLI login for Hub upload."
+  else
+    echo "You passed --hf-repo-id, but no Hugging Face auth was found." >&2
+    echo "Fix one of these before rerunning:" >&2
+    echo "  1. export HF_TOKEN=\"...\"" >&2
+    echo "  2. run: hf auth login" >&2
+    exit 1
+  fi
+fi
 
 TOKENIZER_DIR="artifacts/picollm/tokenizer"
 PRETRAIN_DIR="artifacts/picollm/pretrain-run"
@@ -136,6 +155,12 @@ run_launcher picollm.sft_full.finetune \
   --save-steps 250 \
   --max-steps 1500 \
   --bf16
+
+if [[ -n "$HF_REPO_ID" ]]; then
+  uv run python -m picollm.pretrain_cloud.push_to_hub \
+    --folder "$CHAT_SFT_DIR" \
+    --repo-id "$HF_REPO_ID"
+fi
 
 if [[ "$MODE" == "web" ]]; then
   exec uv run python -m picollm.serve.chat_web \
