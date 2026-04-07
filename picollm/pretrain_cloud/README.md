@@ -337,7 +337,7 @@ Default recommendation for this course:
 
 That is the default because it is usually the best budget/performance path for a serious small-model run.
 
-Search command:
+Use this search command:
 
 ```bash
 uv run python -m picollm.pretrain_cloud.vast_search_offers \
@@ -348,16 +348,14 @@ uv run python -m picollm.pretrain_cloud.vast_search_offers \
   --limit 10
 ```
 
-If you want a simpler single-GPU setup, search for an A100 80GB listing. Use the exact GPU label you see in the Vast marketplace. A common label is `A100 SXM4`.
+That is the one students should use by default.
 
-```bash
-uv run python -m picollm.pretrain_cloud.vast_search_offers \
-  --gpu-name "A100 SXM4" \
-  --num-gpus 1 \
-  --gpu-ram-gb 80 \
-  --reliability 0.995 \
-  --limit 10
-```
+If you want, you can choose a different GPU or a single larger GPU in the Vast.ai console. The simplest alternative is `1x A100 80GB`.
+
+If you change hardware, you usually do not need to edit `speedrun.sh`. Start with the closest preset instead:
+
+- default: `2x4090`
+- single large GPU: `a100-80gb`
 
 Create instance:
 

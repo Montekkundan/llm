@@ -115,18 +115,13 @@ Host ssh1.vast.ai
 
 ## 1. Search offers
 
-For a strong from-scratch run, start by looking for either:
-
-- `2x RTX 4090` if you want the course default
-- `1x A100 80GB` if you want the simplest serious single-GPU path
-
 The default recommendation in this course is:
 
 - `2x RTX 4090`
 
 That is what the `speedrun.sh` script assumes unless you change presets.
 
-Two RTX 4090s:
+Use this search command:
 
 ```bash
 uv run python -m picollm.pretrain_cloud.vast_search_offers \
@@ -137,18 +132,9 @@ uv run python -m picollm.pretrain_cloud.vast_search_offers \
   --limit 10
 ```
 
-If you want more room per GPU, search for an A100 80GB listing. Use the exact GPU label shown in the Vast UI. A common label is `A100 SXM4`:
+That is the one students should use by default.
 
-```bash
-uv run python -m picollm.pretrain_cloud.vast_search_offers \
-  --gpu-name "A100 SXM4" \
-  --num-gpus 1 \
-  --gpu-ram-gb 80 \
-  --reliability 0.995 \
-  --limit 10
-```
-
-If you want to push harder, search for `4x RTX 4090` or `2x A100 80GB`.
+If you want, you can choose a different GPU or a single larger GPU in the Vast.ai console. The simplest alternative is `1x A100 80GB`.
 
 Pick one `id` from the output.
 
