@@ -246,7 +246,7 @@ Then SSH into the Vast machine and run.
 Recommended cloud path:
 
 - use a public Hugging Face dataset instead of a local text file
-- `daily_dialog` is the default if you want a small conversational model
+- `Akhil391/daily_dialog` is the default if you want a small conversational model
 - `roneneldan/TinyStories` is optional if you want a small coherent story model
 
 Run:
@@ -259,7 +259,7 @@ source ~/.zshrc 2>/dev/null || source ~/.bashrc 2>/dev/null || true
 uv sync
 
 uv run python -m picollm.pretrain_cloud.train_tokenizer \
-  --dataset-name daily_dialog \
+  --dataset-name Akhil391/daily_dialog \
   --dataset-split train \
   --text-column dialog \
   --alternating-chat-roles \
@@ -268,7 +268,7 @@ uv run python -m picollm.pretrain_cloud.train_tokenizer \
 
 uv run python -m picollm.pretrain_cloud.train \
   --tokenizer-path artifacts/picollm/tokenizer \
-  --dataset-name daily_dialog \
+  --dataset-name Akhil391/daily_dialog \
   --dataset-split train \
   --text-column dialog \
   --alternating-chat-roles \
@@ -284,8 +284,6 @@ uv run python -m picollm.pretrain_cloud.train \
   --max-steps 8000 \
   --bf16
 ```
-
-In this repo, `daily_dialog` is a friendly alias. The loader resolves it to a Hub-hosted mirror that works with current `datasets` releases, so you can keep using the shorter name in commands.
 
 If you want a small coherent story model instead, run:
 
@@ -322,7 +320,7 @@ Optional:
 
 If you want a stronger tiny model than the old `wikitext` recipe, use one of these:
 
-- `daily_dialog` with `--alternating-chat-roles` for a conversational tiny model
+- `Akhil391/daily_dialog` with `--alternating-chat-roles` for a conversational tiny model
 - `roneneldan/TinyStories` for a cleaner story-style tiny model
 
 If the same Vast machine is still running, you can start another run there. You do not need to create a new machine every time. Before retraining, either remove the old artifacts or use a new output directory:
@@ -366,7 +364,7 @@ Single GPU:
 ```bash
 uv run python -m picollm.pretrain_cloud.train \
   --tokenizer-path artifacts/picollm/tokenizer \
-  --dataset-name daily_dialog \
+  --dataset-name Akhil391/daily_dialog \
   --dataset-split train \
   --text-column dialog \
   --alternating-chat-roles \
@@ -388,7 +386,7 @@ Two GPUs on one machine:
 ```bash
 uv run torchrun --nproc_per_node=2 -m picollm.pretrain_cloud.train \
   --tokenizer-path artifacts/picollm/tokenizer \
-  --dataset-name daily_dialog \
+  --dataset-name Akhil391/daily_dialog \
   --dataset-split train \
   --text-column dialog \
   --alternating-chat-roles \
@@ -449,7 +447,7 @@ uv run python -m picollm.serve.chat_web \
   --device auto
 ```
 
-For a more usable tiny model, prefer the `daily_dialog` or `TinyStories` commands above instead of the older `wikitext` path.
+For a more usable tiny model, prefer the `Akhil391/daily_dialog` or `TinyStories` commands above instead of the older `wikitext` path.
 
 If you want the best chat behavior, keep using the pretrained-model or LoRA sections of this runbook. Use the cloud pretraining path to see what from-scratch training looks like.
 

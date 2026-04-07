@@ -203,7 +203,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 source ~/.zshrc 2>/dev/null || source ~/.bashrc 2>/dev/null || true
 uv sync
 uv run python -m picollm.pretrain_cloud.train_tokenizer \
-  --dataset-name daily_dialog \
+  --dataset-name Akhil391/daily_dialog \
   --dataset-split train \
   --text-column dialog \
   --alternating-chat-roles \
@@ -212,7 +212,7 @@ uv run python -m picollm.pretrain_cloud.train_tokenizer \
 
 uv run python -m picollm.pretrain_cloud.train \
   --tokenizer-path artifacts/picollm/tokenizer \
-  --dataset-name daily_dialog \
+  --dataset-name Akhil391/daily_dialog \
   --dataset-split train \
   --text-column dialog \
   --alternating-chat-roles \
@@ -228,8 +228,6 @@ uv run python -m picollm.pretrain_cloud.train \
   --max-steps 8000 \
   --bf16
 ```
-
-In this repo, `daily_dialog` is a friendly alias. The loader resolves it to a Hub-hosted mirror that works with current `datasets` releases, so you can keep using the shorter name in commands.
 
 If you want a small coherent story model instead, use `TinyStories`:
 
@@ -270,7 +268,7 @@ If your Vast instance has multiple GPUs, launch the same training script with `t
 ```bash
 uv run torchrun --nproc_per_node=2 -m picollm.pretrain_cloud.train \
   --tokenizer-path artifacts/picollm/tokenizer \
-  --dataset-name daily_dialog \
+  --dataset-name Akhil391/daily_dialog \
   --dataset-split train \
   --text-column dialog \
   --alternating-chat-roles \
@@ -322,7 +320,7 @@ If the folder is there and contains model files, you can exit the SSH session.
 
 Why these datasets:
 
-- `daily_dialog` is the default if you want a small conversational model
+- `Akhil391/daily_dialog` is the default if you want a small conversational model
 - `roneneldan/TinyStories` is better if you want a small coherent story model
 - both are public and work out of the box with these scripts
 
@@ -357,7 +355,7 @@ uv run python -m picollm.serve.chat_web \
   --device auto
 ```
 
-For a more usable tiny model, prefer the `daily_dialog` or `TinyStories` commands above instead of the older `wikitext` path.
+For a more usable tiny model, prefer the `Akhil391/daily_dialog` or `TinyStories` commands above instead of the older `wikitext` path.
 
 ## 7. Clean up after the run
 

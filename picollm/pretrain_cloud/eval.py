@@ -9,7 +9,6 @@ import torch
 from datasets import Dataset, load_dataset
 
 from picollm.common import generate_reply, load_generation_bundle
-from picollm.pretrain_cloud.dataset_aliases import resolve_dataset_name
 
 
 def normalize_text(value: object, alternating_chat_roles: bool) -> str:
@@ -36,7 +35,7 @@ def load_texts(
     alternating_chat_roles: bool,
 ) -> Dataset:
     if dataset_name:
-        dataset = load_dataset(resolve_dataset_name(dataset_name), dataset_config, split=dataset_split)
+        dataset = load_dataset(dataset_name, dataset_config, split=dataset_split)
         rows = []
         for item in dataset:
             text = normalize_text(item[text_column], alternating_chat_roles)

@@ -28,15 +28,13 @@ This path is best for:
 
 ```bash
 uv run python -m picollm.pretrain_cloud.train_tokenizer \
-  --dataset-name daily_dialog \
+  --dataset-name Akhil391/daily_dialog \
   --dataset-split train \
   --text-column dialog \
   --alternating-chat-roles \
   --vocab-size 16000 \
   --output-dir artifacts/picollm/tokenizer
 ```
-
-In this repo, `daily_dialog` is a friendly alias. Under the hood the loader resolves it to a Hub-hosted mirror that works with current `datasets` releases, so you can keep using the shorter name in commands.
 
 You can also train from your own local text files:
 
@@ -51,7 +49,7 @@ uv run python -m picollm.pretrain_cloud.train_tokenizer \
 ```bash
 uv run python -m picollm.pretrain_cloud.train \
   --tokenizer-path artifacts/picollm/tokenizer \
-  --dataset-name daily_dialog \
+  --dataset-name Akhil391/daily_dialog \
   --dataset-split train \
   --text-column dialog \
   --alternating-chat-roles \
@@ -148,7 +146,7 @@ uv run python -m picollm.pretrain_cloud.vast_access \
 ```bash
 uv run python -m picollm.pretrain_cloud.eval \
   --model artifacts/picollm/pretrain-run \
-  --dataset-name daily_dialog \
+  --dataset-name Akhil391/daily_dialog \
   --dataset-split validation \
   --text-column dialog \
   --alternating-chat-roles \
@@ -200,7 +198,7 @@ uv run python -m picollm.serve.chat_cli \
   --device auto
 ```
 
-For the default conversational path, use `daily_dialog` with `--alternating-chat-roles`. If you want a story-style tiny model instead, use `TinyStories`.
+For the default conversational path, use `Akhil391/daily_dialog` with `--alternating-chat-roles`. If you want a story-style tiny model instead, use `TinyStories`.
 
 ## 6. Clean up after the run
 
