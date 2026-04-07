@@ -265,9 +265,11 @@ Recommended cloud path:
 For the serious capstone path in this course:
 
 - to get a real from-scratch conversational chatbot quickly, use the serious cloud capstone path on `8x H100`
-- expect about `4 hours` and about `$100` for the full run
+- expect about `3 to 5 hours` for the calibrated capstone recipe
+- at roughly `$18/hour`, that is about `$54 to $90` before bandwidth and storage overhead
 - this follows the same general idea as `nanochat`'s serious cloud speedrun path
 - if you do not want to pay for that run, use the shared Hugging Face checkpoint and still complete the rest of the workflow
+- the current capstone preset is intentionally much shorter than the older `50000`-step long run and is calibrated around a smaller token budget for this `336M` parameter model
 
 If you want the one-command path instead of typing every stage manually, first clone the repo on the Vast box:
 
@@ -449,9 +451,9 @@ uv run torchrun --nproc_per_node=2 -m picollm.pretrain_cloud.train \
   --hidden-size 1024 \
   --batch-size 2 \
   --grad-accum 16 \
-  --warmup-steps 1000 \
-  --save-steps 5000 \
-  --max-steps 50000 \
+  --warmup-steps 500 \
+  --save-steps 1000 \
+  --max-steps 5000 \
   --bf16
 
 uv run torchrun --nproc_per_node=2 -m picollm.sft_full.finetune \
@@ -609,9 +611,9 @@ uv run torchrun --nproc_per_node=2 -m picollm.pretrain_cloud.train \
   --hidden-size 1024 \
   --batch-size 2 \
   --grad-accum 16 \
-  --warmup-steps 1000 \
-  --save-steps 5000 \
-  --max-steps 50000 \
+  --warmup-steps 500 \
+  --save-steps 1000 \
+  --max-steps 5000 \
   --bf16
 ```
 
