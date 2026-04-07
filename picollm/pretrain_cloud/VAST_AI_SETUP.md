@@ -159,8 +159,8 @@ uv run python -m picollm.pretrain_cloud.vast_create_instance \
 Important:
 
 - the create command returns both `new_contract` and `instance_api_key`
-- `new_contract` is the real numeric instance id
-- `instance_api_key` is not the id and should not be passed to `vast_show_instance` or `vast_access`
+- `new_contract` is the real numeric contract value
+- `instance_api_key` is not the contract value and should not be passed to `vast_show_instance` or `vast_access`
 
 Example:
 
@@ -172,13 +172,13 @@ Example:
 }
 ```
 
-From that output, use `34276100` as the instance id.
+From that output, use `34276100` as the `new_contract` value.
 
 ## 3. Check status
 
 ```bash
 uv run python -m picollm.pretrain_cloud.vast_show_instance \
-  --instance-id 34276100
+  --new-contract 34276100
 ```
 
 Wait until the instance is `running`.
@@ -187,7 +187,7 @@ Wait until the instance is `running`.
 
 ```bash
 uv run python -m picollm.pretrain_cloud.vast_access \
-  --instance-id 34276100
+  --new-contract 34276100
 ```
 
 `vast_access` only prints the SSH and copy commands. It does not connect or copy anything by itself.
@@ -202,34 +202,6 @@ cd llm
 curl -LsSf https://astral.sh/uv/install.sh | sh
 source ~/.zshrc 2>/dev/null || source ~/.bashrc 2>/dev/null || true
 uv sync
-uv run python -m picollm.pretrain_cloud.train_tokenizer \
-  --dataset-name roneneldan/TinyStories \
-  --dataset-split train \
-  --text-column text \
-  --vocab-size 32000 \
-  --output-dir artifacts/picollm/tokenizer
-
-uv run python -m picollm.pretrain_cloud.train \
-  --tokenizer-path artifacts/picollm/tokenizer \
-  --dataset-name roneneldan/TinyStories \
-  --dataset-split train \
-  --text-column text \
-  --output-dir artifacts/picollm/pretrain-run \
-  --block-size 256 \
-  --layers 12 \
-  --heads 12 \
-  --hidden-size 768 \
-  --batch-size 8 \
-  --grad-accum 8 \
-  --warmup-steps 500 \
-  --save-steps 1000 \
-  --max-steps 12000 \
-  --bf16
-```
-
-If you want a more conversational tiny model instead, use `daily_dialog`:
-
-```bash
 uv run python -m picollm.pretrain_cloud.train_tokenizer \
   --dataset-name daily_dialog \
   --dataset-split train \
@@ -257,10 +229,17 @@ uv run python -m picollm.pretrain_cloud.train \
   --bf16
 ```
 
-If your Vast instance has multiple GPUs, launch the same training script with `torchrun` instead of plain `python`:
+If you want a small coherent story model instead, use `TinyStories`:
 
 ```bash
-uv run torchrun --nproc_per_node=2 -m picollm.pretrain_cloud.train \
+uv run python -m picollm.pretrain_cloud.train_tokenizer \
+  --dataset-name roneneldan/TinyStories \
+  --dataset-split train \
+  --text-column text \
+  --vocab-size 32000 \
+  --output-dir artifacts/picollm/tokenizer
+
+uv run python -m picollm.pretrain_cloud.train \
   --tokenizer-path artifacts/picollm/tokenizer \
   --dataset-name roneneldan/TinyStories \
   --dataset-split train \
@@ -275,6 +254,34 @@ uv run torchrun --nproc_per_node=2 -m picollm.pretrain_cloud.train \
   --warmup-steps 500 \
   --save-steps 1000 \
   --max-steps 12000 \
+  --bf16
+```
+
+If the same Vast machine is still running, you can start another run there. You do not need to create a new machine every time. Before retraining, either remove the old artifacts or use a new output directory:
+
+```bash
+rm -rf artifacts/picollm/pretrain-run artifacts/picollm/tokenizer
+```
+
+If your Vast instance has multiple GPUs, launch the same training script with `torchrun` instead of plain `python`:
+
+```bash
+uv run torchrun --nproc_per_node=2 -m picollm.pretrain_cloud.train \
+  --tokenizer-path artifacts/picollm/tokenizer \
+  --dataset-name daily_dialog \
+  --dataset-split train \
+  --text-column dialog \
+  --alternating-chat-roles \
+  --output-dir artifacts/picollm/pretrain-run \
+  --block-size 256 \
+  --layers 8 \
+  --heads 8 \
+  --hidden-size 512 \
+  --batch-size 8 \
+  --grad-accum 8 \
+  --warmup-steps 500 \
+  --save-steps 1000 \
+  --max-steps 8000 \
   --bf16
 ```
 
@@ -313,8 +320,8 @@ If the folder is there and contains model files, you can exit the SSH session.
 
 Why these datasets:
 
-- `roneneldan/TinyStories` is much better than `wikitext` for a small coherent GPT-style model
-- `daily_dialog` is better if you want a more conversational tiny model
+- `daily_dialog` is the default if you want a small conversational model
+- `roneneldan/TinyStories` is better if you want a small coherent story model
 - both are public and work out of the box with these scripts
 
 ## 6. Bring the checkpoint back
@@ -325,7 +332,7 @@ From your laptop, ask the helper to print copy commands:
 
 ```bash
 uv run python -m picollm.pretrain_cloud.vast_access \
-  --instance-id 34276100 \
+  --new-contract 34276100 \
   --local-dir artifacts/picollm/pretrain-run \
   --remote-dir /root/llm/artifacts/picollm/pretrain-run
 ```
@@ -348,7 +355,7 @@ uv run python -m picollm.serve.chat_web \
   --device auto
 ```
 
-For a more usable tiny model, prefer the `TinyStories` or `daily_dialog` commands above instead of the older `wikitext` path.
+For a more usable tiny model, prefer the `daily_dialog` or `TinyStories` commands above instead of the older `wikitext` path.
 
 ## 7. Clean up after the run
 
@@ -356,7 +363,7 @@ When you are done, destroy the Vast instance from your local machine:
 
 ```bash
 uv run python -m picollm.pretrain_cloud.vast_destroy_instance \
-  --instance-id 34276100
+  --new-contract 34276100
 ```
 
 Add `--yes` to skip the confirmation prompt.

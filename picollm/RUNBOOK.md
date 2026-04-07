@@ -196,8 +196,8 @@ Important:
 
 - `--offer-id` is the offer you picked from `vast_search_offers`
 - the create command returns a JSON object
-- use `new_contract` from that JSON as the real numeric instance id for the next commands
-- do not use `instance_api_key` as the instance id
+- use `new_contract` from that JSON as the real numeric contract value for the next commands
+- do not use `instance_api_key` as the contract value
 
 Example:
 
@@ -209,20 +209,20 @@ Example:
 }
 ```
 
-In that case, the instance id is `34276100`.
+In that case, the `new_contract` value is `34276100`.
 
 Show instance:
 
 ```bash
 uv run python -m picollm.pretrain_cloud.vast_show_instance \
-  --instance-id 34276100
+  --new-contract 34276100
 ```
 
 Print the SSH and copy commands you should run next:
 
 ```bash
 uv run python -m picollm.pretrain_cloud.vast_access \
-  --instance-id 34276100
+  --new-contract 34276100
 ```
 
 `vast_access` only prints the commands. It does not SSH into the machine or copy the checkpoint by itself.
@@ -246,8 +246,8 @@ Then SSH into the Vast machine and run.
 Recommended cloud path:
 
 - use a public Hugging Face dataset instead of a local text file
-- `roneneldan/TinyStories` is better for a small coherent GPT-style model
-- `daily_dialog` is better if you want a more conversational tiny model
+- `daily_dialog` is the default if you want a small conversational model
+- `roneneldan/TinyStories` is optional if you want a small coherent story model
 
 Run:
 
@@ -258,34 +258,6 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 source ~/.zshrc 2>/dev/null || source ~/.bashrc 2>/dev/null || true
 uv sync
 
-uv run python -m picollm.pretrain_cloud.train_tokenizer \
-  --dataset-name roneneldan/TinyStories \
-  --dataset-split train \
-  --text-column text \
-  --vocab-size 32000 \
-  --output-dir artifacts/picollm/tokenizer
-
-uv run python -m picollm.pretrain_cloud.train \
-  --tokenizer-path artifacts/picollm/tokenizer \
-  --dataset-name roneneldan/TinyStories \
-  --dataset-split train \
-  --text-column text \
-  --output-dir artifacts/picollm/pretrain-run \
-  --block-size 256 \
-  --layers 12 \
-  --heads 12 \
-  --hidden-size 768 \
-  --batch-size 8 \
-  --grad-accum 8 \
-  --warmup-steps 500 \
-  --save-steps 1000 \
-  --max-steps 12000 \
-  --bf16
-```
-
-For a more conversational tiny model, run:
-
-```bash
 uv run python -m picollm.pretrain_cloud.train_tokenizer \
   --dataset-name daily_dialog \
   --dataset-split train \
@@ -313,6 +285,34 @@ uv run python -m picollm.pretrain_cloud.train \
   --bf16
 ```
 
+If you want a small coherent story model instead, run:
+
+```bash
+uv run python -m picollm.pretrain_cloud.train_tokenizer \
+  --dataset-name roneneldan/TinyStories \
+  --dataset-split train \
+  --text-column text \
+  --vocab-size 32000 \
+  --output-dir artifacts/picollm/tokenizer
+
+uv run python -m picollm.pretrain_cloud.train \
+  --tokenizer-path artifacts/picollm/tokenizer \
+  --dataset-name roneneldan/TinyStories \
+  --dataset-split train \
+  --text-column text \
+  --output-dir artifacts/picollm/pretrain-run \
+  --block-size 256 \
+  --layers 12 \
+  --heads 12 \
+  --hidden-size 768 \
+  --batch-size 8 \
+  --grad-accum 8 \
+  --warmup-steps 500 \
+  --save-steps 1000 \
+  --max-steps 12000 \
+  --bf16
+```
+
 Optional:
 
 - if you want the cloud checkpoint on the Hugging Face Hub later, export `HF_TOKEN` on the machine first
@@ -320,8 +320,14 @@ Optional:
 
 If you want a stronger tiny model than the old `wikitext` recipe, use one of these:
 
-- `roneneldan/TinyStories` for a cleaner GPT-style model
-- `daily_dialog` with `--alternating-chat-roles` for a more conversational tiny model
+- `daily_dialog` with `--alternating-chat-roles` for a conversational tiny model
+- `roneneldan/TinyStories` for a cleaner story-style tiny model
+
+If the same Vast machine is still running, you can start another run there. You do not need to create a new machine every time. Before retraining, either remove the old artifacts or use a new output directory:
+
+```bash
+rm -rf artifacts/picollm/pretrain-run artifacts/picollm/tokenizer
+```
 
 These are repo defaults. `nanochat` uses a different, more research-oriented data path, and you can absolutely swap that in later once this workflow is clear.
 
@@ -358,19 +364,20 @@ Single GPU:
 ```bash
 uv run python -m picollm.pretrain_cloud.train \
   --tokenizer-path artifacts/picollm/tokenizer \
-  --dataset-name roneneldan/TinyStories \
+  --dataset-name daily_dialog \
   --dataset-split train \
-  --text-column text \
+  --text-column dialog \
+  --alternating-chat-roles \
   --output-dir artifacts/picollm/pretrain-run \
   --block-size 256 \
-  --layers 12 \
-  --heads 12 \
-  --hidden-size 768 \
+  --layers 8 \
+  --heads 8 \
+  --hidden-size 512 \
   --batch-size 8 \
   --grad-accum 8 \
   --warmup-steps 500 \
   --save-steps 1000 \
-  --max-steps 12000 \
+  --max-steps 8000 \
   --bf16
 ```
 
@@ -379,19 +386,20 @@ Two GPUs on one machine:
 ```bash
 uv run torchrun --nproc_per_node=2 -m picollm.pretrain_cloud.train \
   --tokenizer-path artifacts/picollm/tokenizer \
-  --dataset-name roneneldan/TinyStories \
+  --dataset-name daily_dialog \
   --dataset-split train \
-  --text-column text \
+  --text-column dialog \
+  --alternating-chat-roles \
   --output-dir artifacts/picollm/pretrain-run \
   --block-size 256 \
-  --layers 12 \
-  --heads 12 \
-  --hidden-size 768 \
+  --layers 8 \
+  --heads 8 \
+  --hidden-size 512 \
   --batch-size 8 \
   --grad-accum 8 \
   --warmup-steps 500 \
   --save-steps 1000 \
-  --max-steps 12000 \
+  --max-steps 8000 \
   --bf16
 ```
 
@@ -416,7 +424,7 @@ First, print the copy commands:
 
 ```bash
 uv run python -m picollm.pretrain_cloud.vast_access \
-  --instance-id 34276100 \
+  --new-contract 34276100 \
   --local-dir artifacts/picollm/pretrain-run \
   --remote-dir /root/llm/artifacts/picollm/pretrain-run
 ```
@@ -439,7 +447,7 @@ uv run python -m picollm.serve.chat_web \
   --device auto
 ```
 
-For a more usable tiny model, prefer the `TinyStories` or `daily_dialog` commands above instead of the older `wikitext` path.
+For a more usable tiny model, prefer the `daily_dialog` or `TinyStories` commands above instead of the older `wikitext` path.
 
 If you want the best chat behavior, keep using the pretrained-model or LoRA sections of this runbook. Use the cloud pretraining path to see what from-scratch training looks like.
 
@@ -457,7 +465,7 @@ When you are done with the cloud run, clean up in two places:
 
 ```bash
 uv run python -m picollm.pretrain_cloud.vast_destroy_instance \
-  --instance-id 34276100
+  --new-contract 34276100
 ```
 
 2. remove the copied local checkpoint:
