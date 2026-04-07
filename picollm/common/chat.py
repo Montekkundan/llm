@@ -33,9 +33,9 @@ def build_prompt(
         )
     lines: list[str] = []
     for message in normalized:
-        lines.append(f"{message['role'].upper()}: {message['content']}")
+        lines.append(f"<|{message['role'].lower()}|> {message['content']}")
     if add_generation_prompt:
-        lines.append("ASSISTANT:")
+        lines.append("<|assistant|>")
     return "\n".join(lines)
 
 
@@ -49,13 +49,26 @@ def _prepare_inputs(
     model: PreTrainedModel,
     tokenizer: PreTrainedTokenizerBase,
     messages: Iterable[dict[str, str]],
-) -> tuple[str, dict[str, torch.Tensor], int]:
+    max_new_tokens: int,
+) -> tuple[str, dict[str, torch.Tensor], int, int]:
     prompt = build_prompt(tokenizer, messages, add_generation_prompt=True)
     encoded = tokenizer(prompt, return_tensors="pt")
+    max_positions = getattr(model.config, "n_positions", None) or getattr(model.config, "max_position_embeddings", None)
+    generation_max_new_tokens = max_new_tokens
+    if max_positions is not None:
+        max_positions = int(max_positions)
+        reserve_for_prompt = max(1, max_positions - max_new_tokens)
+        if int(encoded["input_ids"].shape[1]) > reserve_for_prompt:
+            encoded = {
+                key: value[:, -reserve_for_prompt:]
+                for key, value in encoded.items()
+            }
+        prompt_length = int(encoded["input_ids"].shape[1])
+        generation_max_new_tokens = max(1, min(max_new_tokens, max_positions - prompt_length))
     device = getattr(model, "device", torch.device("cpu"))
     encoded = {key: value.to(device) for key, value in encoded.items()}
     prompt_length = int(encoded["input_ids"].shape[1])
-    return prompt, encoded, prompt_length
+    return prompt, encoded, prompt_length, generation_max_new_tokens
 
 
 @torch.inference_mode()
@@ -67,11 +80,16 @@ def generate_reply(
     temperature: float = 0.7,
     top_p: float = 0.95,
 ) -> str:
-    _, encoded, prompt_length = _prepare_inputs(model, tokenizer, messages)
+    _, encoded, prompt_length, generation_max_new_tokens = _prepare_inputs(
+        model,
+        tokenizer,
+        messages,
+        max_new_tokens=max_new_tokens,
+    )
     do_sample = temperature > 0
     generation_kwargs = {
         **encoded,
-        "max_new_tokens": max_new_tokens,
+        "max_new_tokens": generation_max_new_tokens,
         "do_sample": do_sample,
         "pad_token_id": tokenizer.eos_token_id,
     }
@@ -92,12 +110,17 @@ def stream_reply(
     temperature: float = 0.7,
     top_p: float = 0.95,
 ):
-    _, encoded, _ = _prepare_inputs(model, tokenizer, messages)
+    _, encoded, _, generation_max_new_tokens = _prepare_inputs(
+        model,
+        tokenizer,
+        messages,
+        max_new_tokens=max_new_tokens,
+    )
     streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
     do_sample = temperature > 0
     generation_kwargs = {
         **encoded,
-        "max_new_tokens": max_new_tokens,
+        "max_new_tokens": generation_max_new_tokens,
         "do_sample": do_sample,
         "pad_token_id": tokenizer.eos_token_id,
         "streamer": streamer,
