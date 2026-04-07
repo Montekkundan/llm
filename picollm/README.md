@@ -102,6 +102,7 @@ See:
 - [pretrain_cloud/README.md](/Users/montekkundan/Developer/ML/llm/picollm/pretrain_cloud/README.md)
 - [sft_lora/README.md](/Users/montekkundan/Developer/ML/llm/picollm/sft_lora/README.md)
 - [serve/README.md](/Users/montekkundan/Developer/ML/llm/picollm/serve/README.md)
+- [eval/README.md](/Users/montekkundan/Developer/ML/llm/picollm/eval/README.md)
 - [HUGGING_FACE_SETUP.md](/Users/montekkundan/Developer/ML/llm/picollm/HUGGING_FACE_SETUP.md)
 - [pretrain_cloud/VAST_AI_SETUP.md](/Users/montekkundan/Developer/ML/llm/picollm/pretrain_cloud/VAST_AI_SETUP.md)
 

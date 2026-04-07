@@ -388,6 +388,25 @@ uv run python -m picollm.pretrain_cloud.eval \
   --output artifacts/picollm/chat_eval.json
 ```
 
+Shared prompt-suite checkpoint comparison:
+
+```bash
+uv run python -m picollm.eval.compare_checkpoints \
+  --model artifacts/picollm/pretrain-run \
+  --label base \
+  --model artifacts/picollm/chat-sft-run \
+  --label chat \
+  --output artifacts/picollm/checkpoint_compare.json
+```
+
+Simple latency benchmark for the final chat checkpoint:
+
+```bash
+uv run python -m picollm.eval.latency_benchmark \
+  --model artifacts/picollm/chat-sft-run \
+  --output artifacts/picollm/latency_report.json
+```
+
 ## 5. How to swap in a different dataset
 
 You can change datasets, but you must match the dataset schema to the stage.

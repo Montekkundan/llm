@@ -79,6 +79,18 @@ uv run python scripts/real_chatbot_workflow/compare_base_vs_lora.py \
   --device auto
 ```
 
+Shared prompt-suite comparison:
+
+```bash
+uv run python -m picollm.eval.compare_checkpoints \
+  --model Qwen/Qwen2.5-1.5B-Instruct \
+  --label base \
+  --model Qwen/Qwen2.5-1.5B-Instruct \
+  --adapter artifacts/picollm/lora-run \
+  --label lora \
+  --output artifacts/picollm/base_vs_lora_compare.json
+```
+
 ## 5. Serve the adapted model
 
 Important note:
@@ -258,6 +270,25 @@ Recommended cloud path:
 
 - stage 1: base pretrain from scratch on general text
 - stage 2: full chat SFT on your own checkpoint
+
+After cloud training, compare the base checkpoint and the chat checkpoint on the shared prompt suite:
+
+```bash
+uv run python -m picollm.eval.compare_checkpoints \
+  --model artifacts/picollm/pretrain-run \
+  --label base \
+  --model artifacts/picollm/chat-sft-run \
+  --label chat \
+  --output artifacts/picollm/checkpoint_compare.json
+```
+
+Then measure simple serving latency:
+
+```bash
+uv run python -m picollm.eval.latency_benchmark \
+  --model artifacts/picollm/chat-sft-run \
+  --output artifacts/picollm/latency_report.json
+```
 - for the serious cloud capstone path, use `8x H100`
 - if you want a slower but still strong alternative, use `8x A100`
 - if you want a cheaper teaching-scale run, use `2x RTX 4090`
