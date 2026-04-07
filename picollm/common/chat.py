@@ -69,14 +69,16 @@ def generate_reply(
 ) -> str:
     _, encoded, prompt_length = _prepare_inputs(model, tokenizer, messages)
     do_sample = temperature > 0
-    generated = model.generate(
+    generation_kwargs = {
         **encoded,
-        max_new_tokens=max_new_tokens,
-        temperature=max(temperature, 1e-5),
-        top_p=top_p,
-        do_sample=do_sample,
-        pad_token_id=tokenizer.eos_token_id,
-    )
+        "max_new_tokens": max_new_tokens,
+        "do_sample": do_sample,
+        "pad_token_id": tokenizer.eos_token_id,
+    }
+    if do_sample:
+        generation_kwargs["temperature"] = max(temperature, 1e-5)
+        generation_kwargs["top_p"] = top_p
+    generated = model.generate(**generation_kwargs)
     new_tokens = generated[0][prompt_length:]
     return tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
 
@@ -96,12 +98,13 @@ def stream_reply(
     generation_kwargs = {
         **encoded,
         "max_new_tokens": max_new_tokens,
-        "temperature": max(temperature, 1e-5),
-        "top_p": top_p,
         "do_sample": do_sample,
         "pad_token_id": tokenizer.eos_token_id,
         "streamer": streamer,
     }
+    if do_sample:
+        generation_kwargs["temperature"] = max(temperature, 1e-5)
+        generation_kwargs["top_p"] = top_p
     worker = Thread(target=model.generate, kwargs=generation_kwargs)
     worker.start()
     for piece in streamer:

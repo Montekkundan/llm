@@ -7,61 +7,505 @@
     <style>
       :root {
         color-scheme: light;
-        font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
-        --bg: #f6f2eb;
-        --panel: #fffdf8;
-        --ink: #1d1a16;
-        --accent: #8e4b2c;
+        --bg: #f7f6f3;
+        --panel: #ffffff;
+        --panel-soft: #faf9f6;
+        --ink: #171717;
+        --muted: #707070;
+        --line: #e7e5df;
+        --accent: #171717;
+        --shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+        font-family: Inter, "Helvetica Neue", Arial, sans-serif;
       }
-      body { margin: 0; background: radial-gradient(circle at top, #fffaf0, var(--bg)); color: var(--ink); }
-      main { max-width: 920px; margin: 0 auto; padding: 32px 18px 80px; }
-      h1 { font-weight: 600; }
-      #chat { display: grid; gap: 16px; margin: 28px 0; }
-      .bubble { padding: 16px 18px; border-radius: 18px; background: var(--panel); box-shadow: 0 10px 30px rgba(0,0,0,.05); }
-      .user { margin-left: auto; max-width: 60%; background: #efe7dd; }
-      .assistant { max-width: 80%; }
-      form { display: grid; grid-template-columns: 1fr auto; gap: 12px; }
-      textarea { min-height: 90px; resize: vertical; padding: 14px; border-radius: 14px; border: 1px solid #d8cbbd; font: inherit; }
-      button { border: 0; border-radius: 14px; padding: 0 20px; font: inherit; background: var(--accent); color: white; cursor: pointer; }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        overflow: hidden;
+      }
+
+      main {
+        max-width: 1440px;
+        margin: 0 auto;
+        padding: 20px 18px 220px;
+        height: 100vh;
+        display: grid;
+        grid-template-rows: auto 1fr;
+      }
+
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 16px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 1.9rem;
+        font-weight: 700;
+        letter-spacing: -0.04em;
+      }
+
+      .subhead {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      .badge {
+        border: 1px solid var(--line);
+        background: #fff;
+        border-radius: 999px;
+        padding: 8px 12px;
+        font-size: 0.87rem;
+        color: var(--muted);
+      }
+
+      .columns {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+        min-height: 0;
+      }
+
+      .columns.single {
+        grid-template-columns: minmax(0, 1fr);
+        max-width: 920px;
+        margin: 0 auto;
+      }
+
+      .pane {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        box-shadow: var(--shadow);
+        height: 100%;
+        display: grid;
+        grid-template-rows: auto 1fr;
+        overflow: hidden;
+        min-height: 0;
+      }
+
+      .pane-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(250, 249, 246, 0.95);
+      }
+
+      .pane-title {
+        min-width: 0;
+      }
+
+      .pane-title strong {
+        display: block;
+        font-size: 0.98rem;
+      }
+
+      .pane-title span,
+      .status {
+        color: var(--muted);
+        font-size: 0.84rem;
+      }
+
+      .pane-title span {
+        display: block;
+        margin-top: 2px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .transcript {
+        padding: 18px 16px 24px;
+        display: grid;
+        gap: 12px;
+        align-content: start;
+        overflow-y: auto;
+        min-height: 0;
+      }
+
+      .placeholder {
+        margin: 18vh auto 0;
+        max-width: 460px;
+        text-align: center;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      .bubble {
+        max-width: 88%;
+        border-radius: 18px;
+        padding: 14px 16px;
+        white-space: pre-wrap;
+        line-height: 1.55;
+      }
+
+      .assistant {
+        background: var(--panel-soft);
+        border: 1px solid var(--line);
+      }
+
+      .user {
+        justify-self: end;
+        background: #f0efea;
+        border: 1px solid #e3e1d9;
+      }
+
+      .composer-shell {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        padding: 14px 18px 18px;
+        background: linear-gradient(180deg, rgba(247, 246, 243, 0) 0%, rgba(247, 246, 243, 0.92) 20%, rgba(247, 246, 243, 1) 100%);
+        backdrop-filter: blur(8px);
+      }
+
+      .composer-wrap {
+        max-width: 1040px;
+        margin: 0 auto;
+      }
+
+      .pill-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin: 0 0 10px;
+      }
+
+      .pill {
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.9);
+        color: #4a4a4a;
+        border-radius: 999px;
+        padding: 9px 12px;
+        font-size: 0.84rem;
+        cursor: pointer;
+      }
+
+      .pill:hover {
+        background: #fff;
+      }
+
+      .composer {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 10px;
+        padding: 10px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.96);
+        border-radius: 20px;
+        box-shadow: var(--shadow);
+      }
+
+      textarea {
+        min-height: 74px;
+        max-height: 180px;
+        resize: vertical;
+        border: 0;
+        outline: none;
+        padding: 12px 12px 10px;
+        font: inherit;
+        color: var(--ink);
+        background: transparent;
+      }
+
+      textarea::placeholder {
+        color: #9a968f;
+      }
+
+      .send {
+        align-self: end;
+        width: 46px;
+        height: 46px;
+        border: 0;
+        border-radius: 14px;
+        background: var(--accent);
+        color: white;
+        cursor: pointer;
+        font-size: 1.1rem;
+      }
+
+      .send:disabled {
+        opacity: 0.65;
+        cursor: progress;
+      }
+
+      .helper {
+        margin: 10px 4px 0;
+        color: var(--muted);
+        font-size: 0.84rem;
+      }
+
+      @media (max-width: 960px) {
+        main {
+          padding-bottom: 250px;
+        }
+
+        body {
+          overflow: auto;
+        }
+
+        .columns {
+          grid-template-columns: 1fr;
+        }
+
+        .pane {
+          min-height: 42vh;
+          height: auto;
+        }
+      }
+
+      @media (max-width: 640px) {
+        .topbar {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        .composer {
+          grid-template-columns: 1fr;
+        }
+
+        .send {
+          width: 100%;
+          height: 52px;
+        }
+      }
     </style>
   </head>
   <body>
     <main>
-      <h1>picoLLM</h1>
-      <div id="chat"></div>
-      <form id="form">
-        <textarea id="prompt" placeholder="Ask something..."></textarea>
-        <button type="submit">Send</button>
-      </form>
+      <div class="topbar">
+        <div class="brand">
+          <h1>picoLLM</h1>
+          <p class="subhead" id="subhead">Loading model setup...</p>
+        </div>
+        <div class="badge" id="mode-badge">Preparing UI</div>
+      </div>
+
+      <div class="columns" id="columns"></div>
     </main>
+
+    <div class="composer-shell">
+      <div class="composer-wrap">
+        <div class="pill-row" id="pill-row"></div>
+        <form class="composer" id="form">
+          <textarea id="prompt" placeholder="Ask something..."></textarea>
+          <button class="send" type="submit" id="send" aria-label="Send">↵</button>
+        </form>
+        <div class="helper" id="helper">The same message is sent to both panes so you can compare them live.</div>
+      </div>
+    </div>
+
     <script>
-      const chat = document.getElementById("chat");
       const form = document.getElementById("form");
       const prompt = document.getElementById("prompt");
-      const messages = [{ role: "system", content: "You are a helpful assistant." }];
+      const send = document.getElementById("send");
+      const columns = document.getElementById("columns");
+      const subhead = document.getElementById("subhead");
+      const modeBadge = document.getElementById("mode-badge");
+      const helper = document.getElementById("helper");
+      const pillRow = document.getElementById("pill-row");
 
-      function addBubble(role, content) {
-        const div = document.createElement("div");
-        div.className = `bubble ${role}`;
-        div.textContent = content;
-        chat.appendChild(div);
+      const suggestions = [
+        "Explain tokenization for a first-year student.",
+        "What is LoRA?",
+        "Use one analogy to explain self-attention.",
+        "Give me a two-step study plan for learning transformers.",
+      ];
+
+      const systemMessage = { role: "system", content: "You are a helpful assistant." };
+      const chats = {};
+      let compareMode = false;
+
+      function createSuggestions() {
+        suggestions.forEach((text) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "pill";
+          button.textContent = text;
+          button.addEventListener("click", () => {
+            prompt.value = text;
+            prompt.focus();
+          });
+          pillRow.appendChild(button);
+        });
+      }
+
+      function createPane(id, title, subtitle) {
+        const wrapper = document.createElement("section");
+        wrapper.className = "pane";
+        wrapper.innerHTML = `
+          <div class="pane-head">
+            <div class="pane-title">
+              <strong>${title}</strong>
+              <span>${subtitle}</span>
+            </div>
+            <div class="status" id="${id}-status">Ready</div>
+          </div>
+          <div class="transcript" id="${id}-transcript">
+            <div class="placeholder" id="${id}-placeholder">Start with a prompt below. This pane will stream the reply live.</div>
+          </div>
+        `;
+        columns.appendChild(wrapper);
+        chats[id] = {
+          transcript: wrapper.querySelector(`#${id}-transcript`),
+          status: wrapper.querySelector(`#${id}-status`),
+          placeholder: wrapper.querySelector(`#${id}-placeholder`),
+          messages: [systemMessage],
+        };
+      }
+
+      function removePlaceholder(chat) {
+        if (chat.placeholder) {
+          chat.placeholder.remove();
+          chat.placeholder = null;
+        }
+      }
+
+      function addBubble(chat, role, content) {
+        removePlaceholder(chat);
+        const bubble = document.createElement("div");
+        bubble.className = `bubble ${role}`;
+        bubble.textContent = content;
+        chat.transcript.appendChild(bubble);
+        chat.transcript.scrollTop = chat.transcript.scrollHeight;
+        return bubble;
+      }
+
+      async function postStream(path, payload, onToken) {
+        const response = await fetch(path, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(text || `Request failed with ${response.status}`);
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const parts = buffer.split("\n\n");
+          buffer = parts.pop() || "";
+
+          for (const part of parts) {
+            if (!part.startsWith("data: ")) continue;
+            const data = part.slice(6);
+            if (data === "[DONE]") return;
+            const payload = JSON.parse(data);
+            if (payload.token) onToken(payload.token);
+          }
+        }
+      }
+
+      async function runChat(id, path, content) {
+        const chat = chats[id];
+        chat.messages.push({ role: "user", content });
+        addBubble(chat, "user", content);
+        const assistantBubble = addBubble(chat, "assistant", "");
+        chat.status.textContent = "Generating...";
+
+        try {
+          await postStream(
+            path,
+            { messages: chat.messages, temperature: 0.7, max_new_tokens: 256 },
+            (token) => {
+              assistantBubble.textContent += token;
+              chat.transcript.scrollTop = chat.transcript.scrollHeight;
+            },
+          );
+          const reply = assistantBubble.textContent.trim() || "(No response)";
+          assistantBubble.textContent = reply;
+          chat.messages.push({ role: "assistant", content: reply });
+          chat.status.textContent = "Ready";
+        } catch (error) {
+          assistantBubble.textContent = `Error: ${error.message}`;
+          chat.status.textContent = "Error";
+        }
+      }
+
+      async function init() {
+        createSuggestions();
+
+        const response = await fetch("/ui-config");
+        const config = await response.json();
+
+        compareMode = Boolean(config.compare_available);
+        columns.classList.toggle("single", !compareMode);
+        createPane("base", compareMode ? "Base model" : "Chat", config.base_label);
+
+        if (compareMode) {
+          createPane("adapter", "LoRA adapter", config.adapter_label);
+          subhead.textContent = "Compare mode";
+          modeBadge.textContent = "Two responses";
+          helper.textContent = "The same message is sent to both panes so you can compare the baseline and LoRA behavior live.";
+          prompt.placeholder = "Ask one question and send it to both models...";
+        } else {
+          subhead.textContent = "Single model";
+          modeBadge.textContent = "One response";
+          helper.textContent = "Start the server with --adapter to unlock side-by-side comparison.";
+          prompt.placeholder = "Ask something...";
+        }
       }
 
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
         const content = prompt.value.trim();
         if (!content) return;
-        messages.push({ role: "user", content });
-        addBubble("user", content);
+
+        send.disabled = true;
         prompt.value = "";
-        const response = await fetch("/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages, temperature: 0.7, max_new_tokens: 256 }),
-        });
-        const payload = await response.json();
-        messages.push({ role: "assistant", content: payload.reply });
-        addBubble("assistant", payload.reply);
+
+        const jobs = [runChat("base", "/chat/base/stream", content)];
+        if (compareMode) {
+          jobs.push(runChat("adapter", "/chat/adapter/stream", content));
+        }
+
+        await Promise.all(jobs);
+        send.disabled = false;
+        prompt.focus();
+      });
+
+      prompt.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          form.requestSubmit();
+        }
+      });
+
+      init().catch((error) => {
+        subhead.textContent = `Load error`;
+        modeBadge.textContent = "Unavailable";
+        helper.textContent = `Failed to load UI config: ${error.message}`;
       });
     </script>
   </body>

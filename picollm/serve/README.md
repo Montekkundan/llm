@@ -42,6 +42,13 @@ Then open:
 
 `http://127.0.0.1:8008`
 
+If an adapter is configured, the web UI switches into compare mode automatically:
+
+- left pane shows the base model
+- right pane shows the LoRA-adapted model
+- one prompt is sent to both panes at the same time
+- both replies stream independently so you can compare them live in class
+
 ## OpenAI-compatible API
 
 This server also exposes:

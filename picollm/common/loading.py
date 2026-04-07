@@ -59,6 +59,10 @@ def load_generation_bundle(
         model_kwargs["device_map"] = "auto"
     else:
         model_kwargs["dtype"] = torch_dtype
+        # Keep weights materialized on CPU before moving them to the target device.
+        # Some newer Transformers loading paths can leave missing/tied weights on
+        # meta tensors under low-memory loading, which then breaks `.to(...)`.
+        model_kwargs["low_cpu_mem_usage"] = False
     model = AutoModelForCausalLM.from_pretrained(model_name_or_path, **model_kwargs)
 
     if quant_config is None:
@@ -70,6 +74,14 @@ def load_generation_bundle(
         model = PeftModel.from_pretrained(model, str(adapter_path))
         if quant_config is None:
             model = model.to(resolved_device)
+
+    if getattr(model, "generation_config", None) is not None:
+        # Some instruct checkpoints ship sampling defaults that produce noisy warnings
+        # during deterministic evaluation. Keep the base config neutral and let
+        # generate_reply/stream_reply pass explicit sampling kwargs when needed.
+        for field in ("temperature", "top_p", "top_k"):
+            if hasattr(model.generation_config, field):
+                setattr(model.generation_config, field, None)
 
     model.eval()
     return GenerationBundle(

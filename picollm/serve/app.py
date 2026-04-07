@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import time
@@ -7,7 +8,7 @@ import uuid
 from functools import lru_cache
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -45,34 +46,26 @@ def _resolve_max_new_tokens(request: ChatRequest) -> int:
 
 
 @lru_cache(maxsize=1)
-def _get_bundle():
+def _get_base_bundle():
+    return load_generation_bundle(MODEL_NAME, device=DEVICE, quantization=QUANTIZATION)
+
+
+@lru_cache(maxsize=1)
+def _get_adapter_bundle():
     return load_generation_bundle(MODEL_NAME, adapter_path=ADAPTER, device=DEVICE, quantization=QUANTIZATION)
 
 
-@app.get("/", response_class=HTMLResponse)
-def index() -> FileResponse:
-    return FileResponse(UI_PATH)
+def _get_bundle():
+    return _get_adapter_bundle() if ADAPTER else _get_base_bundle()
 
 
-@app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
+def _require_adapter() -> None:
+    if not ADAPTER:
+        raise HTTPException(status_code=404, detail="No adapter configured for compare mode.")
 
 
-@app.get("/metadata")
-def metadata() -> dict[str, object]:
-    return metadata_for_bundle(_get_bundle())
-
-
-@app.get("/v1/models")
-def models() -> dict[str, list[dict[str, str]]]:
-    return {"data": [{"id": MODEL_NAME, "object": "model"}]}
-
-
-@app.post("/chat")
-def chat(request: ChatRequest) -> dict[str, object]:
-    bundle = _get_bundle()
-    reply = generate_reply(
+def _generate_for_bundle(bundle, request: ChatRequest) -> str:
+    return generate_reply(
         bundle.model,
         bundle.tokenizer,
         [message.model_dump() for message in request.messages],
@@ -80,7 +73,54 @@ def chat(request: ChatRequest) -> dict[str, object]:
         temperature=request.temperature,
         top_p=request.top_p,
     )
-    return {"reply": reply}
+
+
+_STREAM_DONE = object()
+
+
+def _next_stream_piece(iterator):
+    return next(iterator, _STREAM_DONE)
+
+
+async def _stream_text_response(bundle, request: ChatRequest):
+    iterator = iter(
+        stream_reply(
+            bundle.model,
+            bundle.tokenizer,
+            [message.model_dump() for message in request.messages],
+            max_new_tokens=_resolve_max_new_tokens(request),
+            temperature=request.temperature,
+            top_p=request.top_p,
+        )
+    )
+    while True:
+        piece = await asyncio.to_thread(_next_stream_piece, iterator)
+        if piece is _STREAM_DONE:
+            break
+        if not piece:
+            continue
+        yield f"data: {json.dumps({'token': piece})}\n\n"
+    yield "data: [DONE]\n\n"
+
+
+async def _stream_openai_pieces(bundle, request: ChatRequest):
+    iterator = iter(
+        stream_reply(
+            bundle.model,
+            bundle.tokenizer,
+            [message.model_dump() for message in request.messages],
+            max_new_tokens=_resolve_max_new_tokens(request),
+            temperature=request.temperature,
+            top_p=request.top_p,
+        )
+    )
+    while True:
+        piece = await asyncio.to_thread(_next_stream_piece, iterator)
+        if piece is _STREAM_DONE:
+            break
+        if not piece:
+            continue
+        yield piece
 
 
 async def _stream_openai_response(request: ChatRequest):
@@ -101,16 +141,7 @@ async def _stream_openai_response(request: ChatRequest):
         )
         + "\n\n"
     )
-    for piece in stream_reply(
-        bundle.model,
-        bundle.tokenizer,
-        [message.model_dump() for message in request.messages],
-        max_new_tokens=_resolve_max_new_tokens(request),
-        temperature=request.temperature,
-        top_p=request.top_p,
-    ):
-        if not piece:
-            continue
+    async for piece in _stream_openai_pieces(bundle, request):
         yield (
             "data: "
             + json.dumps(
@@ -138,6 +169,66 @@ async def _stream_openai_response(request: ChatRequest):
         + "\n\n"
     )
     yield "data: [DONE]\n\n"
+
+
+@app.get("/", response_class=HTMLResponse)
+def index() -> FileResponse:
+    return FileResponse(UI_PATH)
+
+
+@app.get("/health")
+def health() -> dict[str, str]:
+    return {"status": "ok"}
+
+
+@app.get("/metadata")
+def metadata() -> dict[str, object]:
+    return metadata_for_bundle(_get_bundle())
+
+
+@app.get("/ui-config")
+def ui_config() -> dict[str, object]:
+    return {
+        "model_name": MODEL_NAME,
+        "adapter_path": ADAPTER,
+        "compare_available": bool(ADAPTER),
+        "base_label": MODEL_NAME,
+        "adapter_label": "LoRA Adapter" if ADAPTER else None,
+    }
+
+
+@app.get("/v1/models")
+def models() -> dict[str, list[dict[str, str]]]:
+    return {"data": [{"id": MODEL_NAME, "object": "model"}]}
+
+
+@app.post("/chat")
+def chat(request: ChatRequest) -> dict[str, object]:
+    bundle = _get_bundle()
+    reply = _generate_for_bundle(bundle, request)
+    return {"reply": reply}
+
+
+@app.post("/chat/base")
+def chat_base(request: ChatRequest) -> dict[str, object]:
+    return {"reply": _generate_for_bundle(_get_base_bundle(), request)}
+
+
+@app.post("/chat/adapter")
+def chat_adapter(request: ChatRequest) -> dict[str, object]:
+    _require_adapter()
+    return {"reply": _generate_for_bundle(_get_adapter_bundle(), request)}
+
+
+@app.post("/chat/base/stream")
+def chat_base_stream(request: ChatRequest):
+    return StreamingResponse(_stream_text_response(_get_base_bundle(), request), media_type="text/event-stream")
+
+
+@app.post("/chat/adapter/stream")
+def chat_adapter_stream(request: ChatRequest):
+    _require_adapter()
+    return StreamingResponse(_stream_text_response(_get_adapter_bundle(), request), media_type="text/event-stream")
 
 
 @app.post("/v1/chat/completions")
