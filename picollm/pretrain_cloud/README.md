@@ -25,9 +25,11 @@ This path is best for:
 
 ## One-command speedrun
 
-If you want a single command that runs tokenizer training, base pretraining, full chat SFT, and then opens an interface at the end, use:
+If you want a single command that runs tokenizer training, base pretraining, full chat SFT, and then opens an interface at the end, start with:
 
 ```bash
+git clone https://github.com/Montekkundan/llm.git
+cd ~/llm
 bash picollm/pretrain_cloud/speedrun.sh
 ```
 
@@ -42,12 +44,14 @@ That means the script assumes the recommended Vast box is `2x RTX 4090` unless y
 If you want the web UI instead:
 
 ```bash
+cd ~/llm
 bash picollm/pretrain_cloud/speedrun.sh --web
 ```
 
 If you also want the final chatbot pushed to the Hub at the end:
 
 ```bash
+cd ~/llm
 bash picollm/pretrain_cloud/speedrun.sh \
   --web \
   --hf-repo-id your-name/picollm-chat-sft
@@ -56,7 +60,15 @@ bash picollm/pretrain_cloud/speedrun.sh \
 If you rent `1x A100 80GB` instead:
 
 ```bash
+cd ~/llm
 bash picollm/pretrain_cloud/speedrun.sh --preset a100-80gb --web
+```
+
+If your box has 4 GPUs and you want to use all 4, start with:
+
+```bash
+cd ~/llm
+bash picollm/pretrain_cloud/speedrun.sh --web --nproc-per-node 4
 ```
 
 This script is the repo's equivalent of a `nanochat`-style speedrun: one command, same stages, less manual typing. Use the step-by-step commands below when you want to understand each stage directly.
@@ -67,13 +79,15 @@ If you rent a different machine:
 - `2x4090` for two midrange GPUs
 - `a100-80gb` for one large-memory GPU
 
-If you still want to override the training shape without editing the file, use:
+If you need to tune a 4-GPU or custom-hardware run without editing the file, use:
 
 - `--nproc-per-node N`
 - `PICO_PRETRAIN_BATCH_SIZE`
 - `PICO_PRETRAIN_GRAD_ACCUM`
 - `PICO_SFT_BATCH_SIZE`
 - `PICO_SFT_GRAD_ACCUM`
+
+Most students should stop at `--nproc-per-node 4` and only touch the environment variables if they are tuning for throughput or fixing out-of-memory errors.
 
 If you pass `--hf-repo-id`, the script will check Hugging Face auth before training starts.
 

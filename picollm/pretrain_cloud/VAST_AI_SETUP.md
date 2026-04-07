@@ -203,9 +203,11 @@ source ~/.zshrc 2>/dev/null || source ~/.bashrc 2>/dev/null || true
 uv sync
 ```
 
-If you want the one-command path instead of running each stage manually, use:
+If you want the one-command path instead of running each stage manually, start with:
 
 ```bash
+git clone https://github.com/Montekkundan/llm.git
+cd ~/llm
 bash picollm/pretrain_cloud/speedrun.sh
 ```
 
@@ -214,12 +216,14 @@ That ends in the CLI by default and assumes the `2x4090` preset.
 If you want the web UI at the end:
 
 ```bash
+cd ~/llm
 bash picollm/pretrain_cloud/speedrun.sh --web
 ```
 
 If you also want the final chatbot pushed to the Hub at the end:
 
 ```bash
+cd ~/llm
 bash picollm/pretrain_cloud/speedrun.sh \
   --web \
   --hf-repo-id your-name/picollm-chat-sft
@@ -228,7 +232,15 @@ bash picollm/pretrain_cloud/speedrun.sh \
 If you rent `1x A100 80GB` instead:
 
 ```bash
+cd ~/llm
 bash picollm/pretrain_cloud/speedrun.sh --preset a100-80gb --web
+```
+
+If your Vast box has 4 GPUs and you want to use all 4, start with:
+
+```bash
+cd ~/llm
+bash picollm/pretrain_cloud/speedrun.sh --web --nproc-per-node 4
 ```
 
 This script follows the same high-level idea as `nanochat`'s `runs/speedrun.sh`: tokenizer, base train, chat SFT, then immediate interaction.
@@ -239,7 +251,7 @@ If you rent a different Vast option:
 - use `--preset 2x4090` for a 2-GPU midrange box
 - use `--preset a100-80gb` for a single large-memory GPU
 
-If you still need to override the run without editing the file, use:
+If you still need to tune a 4-GPU or custom-hardware run without editing the file, use:
 
 - `--nproc-per-node N`
 - `PICO_PRETRAIN_BATCH_SIZE`
@@ -247,7 +259,7 @@ If you still need to override the run without editing the file, use:
 - `PICO_SFT_BATCH_SIZE`
 - `PICO_SFT_GRAD_ACCUM`
 
-So students usually do not need to edit `speedrun.sh`. They only switch presets or override a small number of knobs if their hardware is different.
+Most students should stop at `--nproc-per-node 4` and only touch the environment variables if they are tuning for throughput or fixing out-of-memory errors.
 
 If you pass `--hf-repo-id`, the script checks Hugging Face auth before training starts.
 

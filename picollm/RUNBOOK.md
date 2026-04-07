@@ -252,9 +252,11 @@ Recommended cloud path:
 - for this course, the default Vast recommendation is `2x RTX 4090`
 - if you want a simpler single-GPU setup, use `1x A100 80GB`
 
-If you want the one-command path instead of typing every stage manually, use:
+If you want the one-command path instead of typing every stage manually, first clone the repo on the Vast box:
 
 ```bash
+git clone https://github.com/Montekkundan/llm.git
+cd ~/llm
 bash picollm/pretrain_cloud/speedrun.sh
 ```
 
@@ -263,12 +265,14 @@ That ends in the CLI by default, and it already assumes the course default prese
 If you want the web UI instead:
 
 ```bash
+cd ~/llm
 bash picollm/pretrain_cloud/speedrun.sh --web
 ```
 
 If you also want the final chatbot pushed to the Hub at the end:
 
 ```bash
+cd ~/llm
 bash picollm/pretrain_cloud/speedrun.sh \
   --web \
   --hf-repo-id your-name/picollm-chat-sft
@@ -277,13 +281,22 @@ bash picollm/pretrain_cloud/speedrun.sh \
 If you rent `1x A100 80GB` instead:
 
 ```bash
+cd ~/llm
 bash picollm/pretrain_cloud/speedrun.sh --preset a100-80gb --web
 ```
 
 If your Vast box has 2 RTX 4090 GPUs, this is the explicit version of the default:
 
 ```bash
+cd ~/llm
 bash picollm/pretrain_cloud/speedrun.sh --preset 2x4090 --web
+```
+
+If your Vast box has 4 GPUs and you want to use all 4, start with this:
+
+```bash
+cd ~/llm
+bash picollm/pretrain_cloud/speedrun.sh --web --nproc-per-node 4
 ```
 
 This is the repo's `nanochat`-style speedrun path. The commands below stay available when you want to understand or modify each stage directly.
@@ -295,7 +308,7 @@ If you rent a different Vast box:
 - use `--preset a100-80gb` for a single large-memory GPU
 - only override further if you know why you are changing the training budget
 
-If you need to change the speedrun behavior without editing the file:
+If you need a more advanced 4-GPU or custom-hardware run, these are the main knobs:
 
 - `--nproc-per-node N` overrides the GPU count
 - `PICO_PRETRAIN_BATCH_SIZE`
@@ -303,7 +316,7 @@ If you need to change the speedrun behavior without editing the file:
 - `PICO_SFT_BATCH_SIZE`
 - `PICO_SFT_GRAD_ACCUM`
 
-So students usually do not need to edit `speedrun.sh`. They can switch presets or override a few knobs from the command line or environment if their hardware differs.
+Most students should stop at `--nproc-per-node 4` and only touch the environment variables if they are tuning for throughput or fixing out-of-memory errors.
 
 If you pass `--hf-repo-id`, the script checks Hugging Face auth before training starts.
 
@@ -314,7 +327,7 @@ It accepts either:
 
 If neither exists, it stops immediately with a clear error instead of waiting until the run is over.
 
-Run:
+If you want the full step-by-step setup instead of the one-command path, run:
 
 ```bash
 git clone https://github.com/Montekkundan/llm.git
