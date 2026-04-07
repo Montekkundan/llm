@@ -17,6 +17,7 @@ HF_TOKEN_VALUE="${PICO_HF_TOKEN:-}"
 REPORT_TO="${PICO_REPORT_TO:-none}"
 RUN_NAME="${PICO_RUN_NAME:-}"
 WANDB_PROJECT="${PICO_WANDB_PROJECT:-}"
+WANDB_ENTITY="${PICO_WANDB_ENTITY:-}"
 WANDB_API_KEY_VALUE="${PICO_WANDB_API_KEY:-}"
 
 while [[ $# -gt 0 ]]; do
@@ -57,6 +58,10 @@ while [[ $# -gt 0 ]]; do
       WANDB_PROJECT="$2"
       shift 2
       ;;
+    --wandb-entity)
+      WANDB_ENTITY="$2"
+      shift 2
+      ;;
     --wandb-api-key)
       WANDB_API_KEY_VALUE="$2"
       shift 2
@@ -67,7 +72,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     *)
       echo "Unknown argument: $1" >&2
-      echo "Usage: bash picollm/pretrain_cloud/speedrun.sh [--cli|--web] [--preset 2x4090|a100-80gb|8xh100|8xa100] [--nproc-per-node N] [--hf-repo-id REPO] [--hf-token TOKEN] [--report-to none|tensorboard|wandb] [--run-name NAME] [--wandb-project NAME] [--wandb-api-key KEY] [--device DEVICE]" >&2
+      echo "Usage: bash picollm/pretrain_cloud/speedrun.sh [--cli|--web] [--preset 2x4090|a100-80gb|8xh100|8xa100] [--nproc-per-node N] [--hf-repo-id REPO] [--hf-token TOKEN] [--report-to none|tensorboard|wandb] [--run-name NAME] [--wandb-project NAME] [--wandb-entity ENTITY] [--wandb-api-key KEY] [--device DEVICE]" >&2
       exit 1
       ;;
   esac
@@ -130,6 +135,10 @@ fi
 
 if [[ "$REPORT_TO" == "wandb" && -n "$WANDB_PROJECT" ]]; then
   export WANDB_PROJECT="$WANDB_PROJECT"
+fi
+
+if [[ "$REPORT_TO" == "wandb" && -n "$WANDB_ENTITY" ]]; then
+  export WANDB_ENTITY="$WANDB_ENTITY"
 fi
 
 if [[ -z "$RUN_NAME" ]]; then

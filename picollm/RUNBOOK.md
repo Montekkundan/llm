@@ -300,6 +300,7 @@ bash picollm/pretrain_cloud/speedrun.sh \
   --report-to wandb \
   --run-name picollm-capstone-8xh100 \
   --wandb-project picollm \
+  --wandb-entity montekkundan \
   --wandb-api-key "$WANDB_API_KEY"
 ```
 
@@ -409,6 +410,9 @@ It accepts either:
 
 - `WANDB_API_KEY` exported in the shell
 - an existing `wandb login` session
+
+If you want the run in a specific W&B workspace, set that explicitly with `--wandb-entity`.
+If you omit it, W&B uses the default entity from the active login or API key.
 
 If neither exists, it stops immediately with a clear error instead of waiting until the run is already in progress.
 
