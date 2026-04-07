@@ -98,6 +98,48 @@ It accepts either:
 
 If neither exists, the script stops immediately with an error instead of waiting until the end of the run.
 
+## Telemetry
+
+Telemetry is optional.
+
+- use `--report-to tensorboard` when you are running locally and want a simple local dashboard
+- use `--report-to wandb` when you are running a long cloud job and want a hosted dashboard
+- keep `--report-to none` if you just want the terminal logs
+
+Local TensorBoard example:
+
+```bash
+cd ~/llm
+bash picollm/pretrain_cloud/speedrun.sh --report-to tensorboard --cli
+```
+
+Then open TensorBoard from the same machine:
+
+```bash
+uv run tensorboard --logdir artifacts
+```
+
+Cloud W&B example:
+
+```bash
+cd ~/llm
+bash picollm/pretrain_cloud/speedrun.sh \
+  --web \
+  --nproc-per-node 4 \
+  --report-to wandb \
+  --run-name picollm-4x4090 \
+  --wandb-project picollm
+```
+
+If you pass `--report-to wandb`, the script checks Weights & Biases auth before training starts.
+
+It accepts either:
+
+- `WANDB_API_KEY` exported in the shell
+- an existing `wandb login` session
+
+If neither exists, the script stops immediately with an error instead of waiting until the run is already in progress.
+
 ## 1. Train a tokenizer
 
 For a serious run, train the tokenizer on a large general-text corpus. You do not need the full corpus just to learn the tokenizer; sampling a large stream is normal.

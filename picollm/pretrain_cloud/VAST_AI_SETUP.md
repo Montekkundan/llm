@@ -270,6 +270,33 @@ It accepts either:
 
 If neither exists, it stops immediately with a clear error.
 
+Telemetry is optional:
+
+- use `--report-to tensorboard` for local runs
+- use `--report-to wandb` for long cloud runs
+- keep `--report-to none` if you only want terminal logs
+
+Example cloud run with Weights & Biases:
+
+```bash
+cd ~/llm
+bash picollm/pretrain_cloud/speedrun.sh \
+  --web \
+  --nproc-per-node 4 \
+  --report-to wandb \
+  --run-name picollm-4x4090 \
+  --wandb-project picollm
+```
+
+If you pass `--report-to wandb`, the script checks Weights & Biases auth before training starts.
+
+It accepts either:
+
+- `WANDB_API_KEY` exported in the shell
+- an existing `wandb login` session
+
+If neither exists, it stops immediately with a clear error instead of waiting until the run is already in progress.
+
 If you want the step-by-step path instead, keep going:
 
 ```bash
