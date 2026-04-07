@@ -98,6 +98,42 @@ uv run python -m picollm.pretrain_cloud.train \
   --max-steps 12000
 ```
 
+## How to swap in a different dataset
+
+You can change the dataset, but do not change only `--dataset-name`. You also need to match the dataset shape.
+
+Use this rule:
+
+- plain text dataset: use the text column, usually `--text-column text`
+- chat dataset with role/content messages: use the messages column, usually `--text-column messages`
+- list-of-turn dialogue dataset: use the dialogue column and add `--alternating-chat-roles`
+
+Examples:
+
+```bash
+# standard chat messages
+--dataset-name HuggingFaceH4/ultrachat_200k
+--dataset-split train_sft
+--text-column messages
+```
+
+```bash
+# plain text stories
+--dataset-name roneneldan/TinyStories
+--dataset-split train
+--text-column text
+```
+
+```bash
+# alternating dialogue turns
+--dataset-name some-dialogue-dataset
+--dataset-split train
+--text-column dialog
+--alternating-chat-roles
+```
+
+So yes, you can swap datasets and start training, but you must keep the split and column aligned with the dataset schema.
+
 ## Vast.ai helper scripts
 
 Search offers:

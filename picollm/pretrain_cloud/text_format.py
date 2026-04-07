@@ -1,30 +1,15 @@
 from __future__ import annotations
 
 
-ROLE_ALIASES = {
-    "human": "user",
-    "user": "user",
-    "assistant": "assistant",
-    "bot": "assistant",
-    "gpt": "assistant",
-    "system": "system",
-}
-
-
-def _normalize_role(role: object) -> str:
-    normalized = str(role).strip().lower()
-    return ROLE_ALIASES.get(normalized, normalized or "user")
-
-
 def _extract_message_text(item: object) -> tuple[str, str] | None:
     if not isinstance(item, dict):
         return None
-    role = item.get("role", item.get("from", item.get("speaker", "user")))
-    content = item.get("content", item.get("value", item.get("text", "")))
+    role = str(item.get("role", "")).strip().lower()
+    content = item.get("content", "")
     content_str = str(content).strip()
-    if not content_str:
+    if role not in {"system", "user", "assistant"} or not content_str:
         return None
-    return _normalize_role(role), content_str
+    return role, content_str
 
 
 def normalize_text(value: object, alternating_chat_roles: bool) -> str:

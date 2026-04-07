@@ -353,6 +353,42 @@ If the folder is there and contains model files, you can exit SSH.
 
 If you prefer your own corpus instead of those public datasets, create a text file on the Vast machine and pass it with repeated `--text-file` flags.
 
+### How to swap in a different dataset
+
+You can change the dataset, but do not change only `--dataset-name`. You also need to match the dataset schema.
+
+Use this rule:
+
+- plain text dataset: use the text column, usually `--text-column text`
+- chat dataset with role/content messages: use the messages column, usually `--text-column messages`
+- list-of-turn dialogue dataset: use the dialogue column and add `--alternating-chat-roles`
+
+Examples:
+
+```bash
+# standard chat messages
+--dataset-name HuggingFaceH4/ultrachat_200k
+--dataset-split train_sft
+--text-column messages
+```
+
+```bash
+# plain text stories
+--dataset-name roneneldan/TinyStories
+--dataset-split train
+--text-column text
+```
+
+```bash
+# alternating dialogue turns
+--dataset-name some-dialogue-dataset
+--dataset-split train
+--text-column dialog
+--alternating-chat-roles
+```
+
+So yes, you can swap datasets and start training, but the split and text column must match the dataset format.
+
 ### Multi-GPU on Vast
 
 If your Vast instance has more than one GPU, you can launch the same script with `torchrun`.
