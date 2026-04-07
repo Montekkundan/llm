@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from itertools import chain
 
 from transformers import (
     AutoTokenizer,
@@ -12,6 +13,14 @@ from transformers import (
 )
 
 from .data import load_text_dataset
+
+
+def _dataset_columns(dataset: object) -> list[str] | None:
+    if getattr(dataset, "column_names", None):
+        return list(dataset.column_names)
+    if getattr(dataset, "features", None):
+        return list(dataset.features.keys())
+    return None
 
 
 def main() -> None:
@@ -65,18 +74,27 @@ def main() -> None:
 
     tokenized = dataset.map(tokenize, batched=True, remove_columns=["text"])
 
-    def group_texts(batch: dict[str, list[list[int]]]) -> dict[str, list[list[int]]]:
-        concatenated = {key: sum(batch[key], []) for key in batch.keys()}
+    def group_texts(batch: dict[str, list[object]]) -> dict[str, list[list[int]]]:
+        sequence_keys = [
+            key
+            for key, values in batch.items()
+            if values and isinstance(values[0], list)
+        ]
+        concatenated = {
+            key: list(chain.from_iterable(batch[key]))  # type: ignore[arg-type]
+            for key in sequence_keys
+        }
         total_length = len(concatenated["input_ids"])
         total_length = (total_length // args.block_size) * args.block_size
         if total_length == 0:
-            return {key: [] for key in batch.keys()}
+            return {key: [] for key in sequence_keys}
         return {
             key: [values[index : index + args.block_size] for index in range(0, total_length, args.block_size)]
             for key, values in concatenated.items()
         }
 
-    tokenized = tokenized.map(group_texts, batched=True)
+    packed_remove_columns = _dataset_columns(tokenized)
+    tokenized = tokenized.map(group_texts, batched=True, remove_columns=packed_remove_columns)
     vocab_size = args.vocab_size or tokenizer.vocab_size
     config = GPT2Config(
         vocab_size=vocab_size,
