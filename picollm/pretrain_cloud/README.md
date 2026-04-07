@@ -28,10 +28,10 @@ For the lecture, this path is best for:
 
 ```bash
 uv run python -m picollm.pretrain_cloud.train_tokenizer \
-  --dataset-name wikitext \
-  --dataset-config wikitext-2-raw-v1 \
+  --dataset-name roneneldan/TinyStories \
   --dataset-split train \
   --text-column text \
+  --vocab-size 32000 \
   --output-dir artifacts/picollm/tokenizer
 ```
 
@@ -48,21 +48,51 @@ uv run python -m picollm.pretrain_cloud.train_tokenizer \
 ```bash
 uv run python -m picollm.pretrain_cloud.train \
   --tokenizer-path artifacts/picollm/tokenizer \
-  --dataset-name wikitext \
-  --dataset-config wikitext-2-raw-v1 \
+  --dataset-name roneneldan/TinyStories \
   --dataset-split train \
   --text-column text \
+  --output-dir artifacts/picollm/pretrain-run \
+  --layers 12 \
+  --heads 12 \
+  --hidden-size 768 \
+  --block-size 256 \
+  --batch-size 8 \
+  --grad-accum 8 \
+  --warmup-steps 500 \
+  --save-steps 1000 \
+  --max-steps 12000
+```
+
+On CUDA machines, add `--bf16` when supported.
+
+For a more conversational tiny model, use `daily_dialog` and alternate user/assistant turns:
+
+```bash
+uv run python -m picollm.pretrain_cloud.train_tokenizer \
+  --dataset-name daily_dialog \
+  --dataset-split train \
+  --text-column dialog \
+  --alternating-chat-roles \
+  --vocab-size 16000 \
+  --output-dir artifacts/picollm/tokenizer
+
+uv run python -m picollm.pretrain_cloud.train \
+  --tokenizer-path artifacts/picollm/tokenizer \
+  --dataset-name daily_dialog \
+  --dataset-split train \
+  --text-column dialog \
+  --alternating-chat-roles \
   --output-dir artifacts/picollm/pretrain-run \
   --layers 8 \
   --heads 8 \
   --hidden-size 512 \
-  --block-size 512 \
-  --batch-size 2 \
-  --grad-accum 16 \
-  --max-steps 2000
+  --block-size 256 \
+  --batch-size 8 \
+  --grad-accum 8 \
+  --warmup-steps 500 \
+  --save-steps 1000 \
+  --max-steps 8000
 ```
-
-On CUDA machines, add `--bf16` when supported.
 
 ## Vast.ai helper scripts
 
@@ -72,8 +102,12 @@ Search offers:
 uv run python -m picollm.pretrain_cloud.vast_search_offers \
   --gpu-name "RTX 4090" \
   --num-gpus 1 \
-  --gpu-ram-gb 24
+  --gpu-ram-gb 24 \
+  --reliability 0.995 \
+  --limit 10
 ```
+
+Keep `--num-gpus 1` for this path. The current script is a single-process Trainer workflow, so a stronger single GPU is more useful than renting multiple GPUs here.
 
 Create instance:
 
@@ -99,13 +133,14 @@ uv run python -m picollm.pretrain_cloud.vast_access \
   --instance-id 34276100
 ```
 
+`vast_access` only prints the commands. It does not execute SSH, `scp`, or `rsync` for you.
+
 ## 3. Evaluate the checkpoint
 
 ```bash
 uv run python -m picollm.pretrain_cloud.eval \
   --model artifacts/picollm/pretrain-run \
-  --dataset-name wikitext \
-  --dataset-config wikitext-2-raw-v1 \
+  --dataset-name roneneldan/TinyStories \
   --dataset-split validation \
   --text-column text \
   --output artifacts/picollm/pretrain_eval.json
@@ -141,16 +176,44 @@ The normal flow is:
 2. use `new_contract` as the instance id
 3. SSH into the machine
 4. run tokenizer training and pretraining there
-5. copy `artifacts/picollm/pretrain-run` back to your laptop with the `scp` or `rsync` command printed by `vast_access`
+5. verify the remote checkpoint exists
+6. exit SSH
+7. on your laptop, run the `scp` or `rsync` command printed by `vast_access` to copy `artifacts/picollm/pretrain-run` back
 
 Mac, Linux, and Windows can all use the same checkpoint folder with `transformers`.
 
-Example local chat:
+Example local chat after you copied the folder back:
 
 ```bash
 uv run python -m picollm.serve.chat_cli \
-  --model your-name/picollm-pretrain \
+  --model artifacts/picollm/pretrain-run \
   --device auto
+```
+
+For a cleaner tiny GPT-style model, prefer `TinyStories`. For a more conversational tiny model, prefer `daily_dialog` with `--alternating-chat-roles`.
+
+## 6. Clean up after the run
+
+Destroy the Vast instance from your local machine:
+
+```bash
+uv run python -m picollm.pretrain_cloud.vast_destroy_instance \
+  --instance-id 34276100
+```
+
+Add `--yes` if you want to skip the confirmation prompt.
+
+Remove the copied local checkpoint:
+
+```bash
+uv run python -m picollm.pretrain_cloud.cleanup_local_artifacts
+```
+
+If you also want to remove the copied tokenizer:
+
+```bash
+uv run python -m picollm.pretrain_cloud.cleanup_local_artifacts \
+  --include-tokenizer
 ```
 
 Device rules in this repo:

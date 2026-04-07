@@ -119,8 +119,23 @@ Host ssh1.vast.ai
 uv run python -m picollm.pretrain_cloud.vast_search_offers \
   --gpu-name "RTX 4090" \
   --num-gpus 1 \
-  --gpu-ram-gb 24
+  --gpu-ram-gb 24 \
+  --reliability 0.995 \
+  --limit 10
 ```
+
+If you want to experiment with multi-GPU, increase `--num-gpus`:
+
+```bash
+uv run python -m picollm.pretrain_cloud.vast_search_offers \
+  --gpu-name "RTX 4090" \
+  --num-gpus 2 \
+  --gpu-ram-gb 24 \
+  --reliability 0.995 \
+  --limit 10
+```
+
+The training script itself can run under `torchrun`, so multi-GPU is available when you want to try it.
 
 Pick one `id` from the output.
 
@@ -175,6 +190,8 @@ uv run python -m picollm.pretrain_cloud.vast_access \
   --instance-id 34276100
 ```
 
+`vast_access` only prints the SSH and copy commands. It does not connect or copy anything by itself.
+
 ## 5. Run training on the box
 
 After SSH:
@@ -186,22 +203,91 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 source ~/.zshrc 2>/dev/null || source ~/.bashrc 2>/dev/null || true
 uv sync
 uv run python -m picollm.pretrain_cloud.train_tokenizer \
-  --dataset-name wikitext \
-  --dataset-config wikitext-2-raw-v1 \
+  --dataset-name roneneldan/TinyStories \
   --dataset-split train \
   --text-column text \
+  --vocab-size 32000 \
   --output-dir artifacts/picollm/tokenizer
 
 uv run python -m picollm.pretrain_cloud.train \
   --tokenizer-path artifacts/picollm/tokenizer \
-  --dataset-name wikitext \
-  --dataset-config wikitext-2-raw-v1 \
+  --dataset-name roneneldan/TinyStories \
   --dataset-split train \
   --text-column text \
   --output-dir artifacts/picollm/pretrain-run \
-  --max-steps 2000 \
+  --block-size 256 \
+  --layers 12 \
+  --heads 12 \
+  --hidden-size 768 \
+  --batch-size 8 \
+  --grad-accum 8 \
+  --warmup-steps 500 \
+  --save-steps 1000 \
+  --max-steps 12000 \
   --bf16
 ```
+
+If you want a more conversational tiny model instead, use `daily_dialog`:
+
+```bash
+uv run python -m picollm.pretrain_cloud.train_tokenizer \
+  --dataset-name daily_dialog \
+  --dataset-split train \
+  --text-column dialog \
+  --alternating-chat-roles \
+  --vocab-size 16000 \
+  --output-dir artifacts/picollm/tokenizer
+
+uv run python -m picollm.pretrain_cloud.train \
+  --tokenizer-path artifacts/picollm/tokenizer \
+  --dataset-name daily_dialog \
+  --dataset-split train \
+  --text-column dialog \
+  --alternating-chat-roles \
+  --output-dir artifacts/picollm/pretrain-run \
+  --block-size 256 \
+  --layers 8 \
+  --heads 8 \
+  --hidden-size 512 \
+  --batch-size 8 \
+  --grad-accum 8 \
+  --warmup-steps 500 \
+  --save-steps 1000 \
+  --max-steps 8000 \
+  --bf16
+```
+
+If your Vast instance has multiple GPUs, launch the same training script with `torchrun` instead of plain `python`:
+
+```bash
+uv run torchrun --nproc_per_node=2 -m picollm.pretrain_cloud.train \
+  --tokenizer-path artifacts/picollm/tokenizer \
+  --dataset-name roneneldan/TinyStories \
+  --dataset-split train \
+  --text-column text \
+  --output-dir artifacts/picollm/pretrain-run \
+  --block-size 256 \
+  --layers 12 \
+  --heads 12 \
+  --hidden-size 768 \
+  --batch-size 8 \
+  --grad-accum 8 \
+  --warmup-steps 500 \
+  --save-steps 1000 \
+  --max-steps 12000 \
+  --bf16
+```
+
+What changes:
+
+- `--batch-size` stays per GPU
+- total effective batch increases with the number of GPUs
+- throughput usually improves
+- the model and objective stay the same
+
+Rough effective global batch:
+
+- `per_device_batch_size × num_gpus × grad_accum`
 
 The expected checkpoint location after training is usually:
 
@@ -211,13 +297,29 @@ The expected checkpoint location after training is usually:
 
 If you cloned the repo into a different directory, use that path instead.
 
-Why `wikitext` here:
+You may also see a log line like:
 
-- the repo does not ship a large sample corpus file
-- `wikitext` is public and works out of the box with these scripts
-- this is the fastest way to get a real checkpoint training on the cloud box
+- `Writing model shards`
+
+That is normal. It usually means the checkpoint is being saved into multiple files rather than one large file. The training job is not doing anything strange there; it is just writing the checkpoint in shard form on disk.
+
+Before leaving SSH, confirm the checkpoint exists:
+
+```bash
+ls -lah /root/llm/artifacts/picollm/pretrain-run
+```
+
+If the folder is there and contains model files, you can exit the SSH session.
+
+Why these datasets:
+
+- `roneneldan/TinyStories` is much better than `wikitext` for a small coherent GPT-style model
+- `daily_dialog` is better if you want a more conversational tiny model
+- both are public and work out of the box with these scripts
 
 ## 6. Bring the checkpoint back
+
+Run the next commands on your laptop or desktop, not inside the Vast VM.
 
 From your laptop, ask the helper to print copy commands:
 
@@ -228,7 +330,7 @@ uv run python -m picollm.pretrain_cloud.vast_access \
   --remote-dir /root/llm/artifacts/picollm/pretrain-run
 ```
 
-Then run either the printed `scp` command or the printed `rsync` command.
+Then run either the printed `scp` command or the printed `rsync` command. Running `vast_access` alone does not transfer any files.
 
 After the checkpoint folder is back on your machine, run it locally:
 
@@ -246,4 +348,28 @@ uv run python -m picollm.serve.chat_web \
   --device auto
 ```
 
-For a good chat demo, do not stop at pretraining. Add SFT or LoRA after that.
+For a more usable tiny model, prefer the `TinyStories` or `daily_dialog` commands above instead of the older `wikitext` path.
+
+## 7. Clean up after the run
+
+When you are done, destroy the Vast instance from your local machine:
+
+```bash
+uv run python -m picollm.pretrain_cloud.vast_destroy_instance \
+  --instance-id 34276100
+```
+
+Add `--yes` to skip the confirmation prompt.
+
+If you also want to clear the copied local files:
+
+```bash
+uv run python -m picollm.pretrain_cloud.cleanup_local_artifacts
+```
+
+Or remove both the local checkpoint and tokenizer:
+
+```bash
+uv run python -m picollm.pretrain_cloud.cleanup_local_artifacts \
+  --include-tokenizer
+```
