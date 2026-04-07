@@ -249,6 +249,28 @@ Recommended cloud path:
 - stage 2: full chat SFT on your own checkpoint
 - use a multi-GPU Vast box if you want the strongest result in a reasonable amount of time
 
+If you want the one-command path instead of typing every stage manually, use:
+
+```bash
+bash picollm/pretrain_cloud/speedrun.sh
+```
+
+That ends in the CLI by default.
+
+If you want the web UI instead:
+
+```bash
+bash picollm/pretrain_cloud/speedrun.sh --web
+```
+
+If your Vast box has 2 GPUs:
+
+```bash
+bash picollm/pretrain_cloud/speedrun.sh --web --nproc-per-node 2
+```
+
+This is the repo's `nanochat`-style speedrun path. The commands below stay available when you want to understand or modify each stage directly.
+
 Run:
 
 ```bash

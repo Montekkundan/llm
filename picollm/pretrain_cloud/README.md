@@ -23,6 +23,30 @@ This path is best for:
 - showing why chat behavior is usually a second stage, not the first stage
 - producing a checkpoint that feels like your own small chatbot, not just a tiny language model
 
+## One-command speedrun
+
+If you want a single command that runs tokenizer training, base pretraining, full chat SFT, and then opens an interface at the end, use:
+
+```bash
+bash picollm/pretrain_cloud/speedrun.sh
+```
+
+That ends in the CLI by default.
+
+If you want the web UI instead:
+
+```bash
+bash picollm/pretrain_cloud/speedrun.sh --web
+```
+
+If your box has more than one GPU, pass the GPU count:
+
+```bash
+bash picollm/pretrain_cloud/speedrun.sh --web --nproc-per-node 2
+```
+
+This script is the repo's equivalent of a `nanochat`-style speedrun: one command, same stages, less manual typing. Use the step-by-step commands below when you want to understand each stage directly.
+
 ## 1. Train a tokenizer
 
 For a serious run, train the tokenizer on a large general-text corpus. You do not need the full corpus just to learn the tokenizer; sampling a large stream is normal.

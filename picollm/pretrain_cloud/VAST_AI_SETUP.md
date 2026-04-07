@@ -209,6 +209,33 @@ cd llm
 curl -LsSf https://astral.sh/uv/install.sh | sh
 source ~/.zshrc 2>/dev/null || source ~/.bashrc 2>/dev/null || true
 uv sync
+```
+
+If you want the one-command path instead of running each stage manually, use:
+
+```bash
+bash picollm/pretrain_cloud/speedrun.sh
+```
+
+That ends in the CLI by default.
+
+If you want the web UI at the end:
+
+```bash
+bash picollm/pretrain_cloud/speedrun.sh --web
+```
+
+If your box has 2 GPUs:
+
+```bash
+bash picollm/pretrain_cloud/speedrun.sh --web --nproc-per-node 2
+```
+
+This script follows the same high-level idea as `nanochat`'s `runs/speedrun.sh`: tokenizer, base train, chat SFT, then immediate interaction.
+
+If you want the step-by-step path instead, keep going:
+
+```bash
 
 uv run python -m picollm.pretrain_cloud.train_tokenizer \
   --dataset-name HuggingFaceFW/fineweb-edu \
