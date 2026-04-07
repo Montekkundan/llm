@@ -14,16 +14,37 @@ from transformers import (
 )
 
 
+def normalize_text(value: object, alternating_chat_roles: bool) -> str:
+    if isinstance(value, list):
+        parts = [str(item).strip() for item in value if str(item).strip()]
+        if not parts:
+            return ""
+        if alternating_chat_roles:
+            rendered = []
+            for index, part in enumerate(parts):
+                role = "<|user|>" if index % 2 == 0 else "<|assistant|>"
+                rendered.append(f"{role} {part}")
+            return "\n".join(rendered)
+        return "\n".join(parts)
+    return str(value).strip()
+
+
 def build_examples(
     dataset_name: str | None,
     dataset_config: str | None,
     dataset_split: str,
     text_column: str,
     text_files: list[str],
+    alternating_chat_roles: bool,
 ) -> Dataset:
     if dataset_name:
         dataset = load_dataset(dataset_name, dataset_config, split=dataset_split)
-        return dataset.select_columns([text_column])
+        rows = []
+        for item in dataset:
+            text = normalize_text(item[text_column], alternating_chat_roles)
+            if text:
+                rows.append({text_column: text})
+        return Dataset.from_list(rows)
     rows = []
     for file_path in text_files:
         for line in Path(file_path).read_text(encoding="utf-8").splitlines():
@@ -42,6 +63,7 @@ def main() -> None:
     parser.add_argument("--dataset-split", default="train")
     parser.add_argument("--text-column", default="text")
     parser.add_argument("--text-file", action="append", default=[])
+    parser.add_argument("--alternating-chat-roles", action="store_true")
     parser.add_argument("--block-size", type=int, default=512)
     parser.add_argument("--vocab-size", type=int, default=None)
     parser.add_argument("--layers", type=int, default=8)
@@ -61,7 +83,14 @@ def main() -> None:
     if tokenizer.pad_token is None and tokenizer.eos_token is not None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    dataset = build_examples(args.dataset_name, args.dataset_config, args.dataset_split, args.text_column, args.text_file)
+    dataset = build_examples(
+        args.dataset_name,
+        args.dataset_config,
+        args.dataset_split,
+        args.text_column,
+        args.text_file,
+        args.alternating_chat_roles,
+    )
 
     def tokenize(batch: dict[str, list[str]]) -> dict[str, list[list[int]]]:
         return tokenizer(batch[args.text_column], truncation=True, max_length=args.block_size)
@@ -92,6 +121,7 @@ def main() -> None:
         bf16=args.bf16,
         report_to=[],
         remove_unused_columns=False,
+        ddp_find_unused_parameters=False,
     )
     trainer = Trainer(
         model=model,

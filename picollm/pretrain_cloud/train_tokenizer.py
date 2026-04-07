@@ -24,16 +24,37 @@ SPECIAL_TOKENS = [
 ]
 
 
+def normalize_text(value: object, alternating_chat_roles: bool) -> str:
+    if isinstance(value, list):
+        parts = [str(item).strip() for item in value if str(item).strip()]
+        if not parts:
+            return ""
+        if alternating_chat_roles:
+            rendered = []
+            for index, part in enumerate(parts):
+                role = "<|user|>" if index % 2 == 0 else "<|assistant|>"
+                rendered.append(f"{role} {part}")
+            return "\n".join(rendered)
+        return "\n".join(parts)
+    return str(value).strip()
+
+
 def iter_texts(
     dataset_name: str | None,
     dataset_config: str | None,
     dataset_split: str,
     text_column: str,
     text_files: list[str],
+    alternating_chat_roles: bool,
 ) -> list[str]:
     if dataset_name:
         dataset = load_dataset(dataset_name, dataset_config, split=dataset_split)
-        return [str(item[text_column]) for item in dataset if str(item[text_column]).strip()]
+        texts = []
+        for item in dataset:
+            text = normalize_text(item[text_column], alternating_chat_roles)
+            if text:
+                texts.append(text)
+        return texts
     texts: list[str] = []
     for path in text_files:
         texts.extend(line.strip() for line in Path(path).read_text(encoding="utf-8").splitlines() if line.strip())
@@ -47,6 +68,7 @@ def build_argparser() -> argparse.ArgumentParser:
     parser.add_argument("--dataset-split", default="train")
     parser.add_argument("--text-column", default="text")
     parser.add_argument("--text-file", action="append", default=[])
+    parser.add_argument("--alternating-chat-roles", action="store_true")
     parser.add_argument("--vocab-size", type=int, default=16000)
     parser.add_argument("--min-frequency", type=int, default=2)
     parser.add_argument("--output-dir", required=True)
@@ -55,7 +77,14 @@ def build_argparser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = build_argparser().parse_args()
-    texts = iter_texts(args.dataset_name, args.dataset_config, args.dataset_split, args.text_column, args.text_file)
+    texts = iter_texts(
+        args.dataset_name,
+        args.dataset_config,
+        args.dataset_split,
+        args.text_column,
+        args.text_file,
+        args.alternating_chat_roles,
+    )
     if not texts:
         raise SystemExit("No text found. Pass --dataset-name or at least one --text-file.")
 
@@ -99,6 +128,7 @@ def main() -> None:
                 "dataset_split": args.dataset_split,
                 "text_column": args.text_column,
                 "text_files": args.text_file,
+                "alternating_chat_roles": args.alternating_chat_roles,
             },
             indent=2,
         ),
