@@ -115,13 +115,38 @@ Host ssh1.vast.ai
 
 ## 1. Search offers
 
-The default recommendation in this course is:
+For the serious capstone path in this course:
 
-- `2x RTX 4090`
+- to get a real from-scratch conversational chatbot quickly, use the serious cloud capstone path on `8x H100`
+- expect about `4 hours` and about `$100` for the full run
+- this follows the same general idea as `nanochat`'s serious cloud speedrun path
+- if you do not want to pay for that run, use the shared Hugging Face checkpoint and still complete the rest of the workflow
 
-That is what the `speedrun.sh` script assumes unless you change presets.
+Use this search command first:
 
-Use this search command:
+```bash
+uv run python -m picollm.pretrain_cloud.vast_search_offers \
+  --gpu-name "H100 SXM5" \
+  --num-gpus 8 \
+  --gpu-ram-gb 80 \
+  --reliability 0.995 \
+  --limit 10
+```
+
+If the exact H100 label differs on Vast, use the closest H100 label shown in the Vast.ai console.
+
+If you want a slower but still strong alternative, use `8x A100`:
+
+```bash
+uv run python -m picollm.pretrain_cloud.vast_search_offers \
+  --gpu-name "A100 SXM4" \
+  --num-gpus 8 \
+  --gpu-ram-gb 80 \
+  --reliability 0.995 \
+  --limit 10
+```
+
+If you want the cheaper teaching-scale run instead, use:
 
 ```bash
 uv run python -m picollm.pretrain_cloud.vast_search_offers \
@@ -132,9 +157,7 @@ uv run python -m picollm.pretrain_cloud.vast_search_offers \
   --limit 10
 ```
 
-That is the one students should use by default.
-
-If you want, you can choose a different GPU or a single larger GPU in the Vast.ai console. The simplest alternative is `1x A100 80GB`.
+If you want, you can also choose a single larger GPU in the Vast.ai console. The simplest single-GPU alternative is `1x A100 80GB`.
 
 Pick one `id` from the output.
 
@@ -153,6 +176,15 @@ If you want a Hugging Face token available on the box:
 uv run python -m picollm.pretrain_cloud.vast_create_instance \
   --offer-id 12345678 \
   --hf-token "$HF_TOKEN"
+```
+
+If you also want Weights & Biases available on the box:
+
+```bash
+uv run python -m picollm.pretrain_cloud.vast_create_instance \
+  --offer-id 12345678 \
+  --hf-token "$HF_TOKEN" \
+  --wandb-api-key "$WANDB_API_KEY"
 ```
 
 Important:
@@ -211,7 +243,29 @@ cd ~/llm
 bash picollm/pretrain_cloud/speedrun.sh
 ```
 
-That ends in the CLI by default and assumes the `2x4090` preset.
+That ends in the CLI by default and assumes the `2x4090` budget teaching preset.
+
+If you want the serious capstone run instead, use:
+
+```bash
+cd ~/llm
+bash picollm/pretrain_cloud/speedrun.sh --preset 8xh100 --web
+```
+
+If you want the serious capstone run with Hub upload and W&B telemetry, use:
+
+```bash
+cd ~/llm
+bash picollm/pretrain_cloud/speedrun.sh \
+  --preset 8xh100 \
+  --web \
+  --hf-repo-id your-name/picollm-chat-sft \
+  --hf-token "$HF_TOKEN" \
+  --report-to wandb \
+  --run-name picollm-capstone-8xh100 \
+  --wandb-project picollm \
+  --wandb-api-key "$WANDB_API_KEY"
+```
 
 If you want the web UI at the end:
 
@@ -227,6 +281,13 @@ cd ~/llm
 bash picollm/pretrain_cloud/speedrun.sh \
   --web \
   --hf-repo-id your-name/picollm-chat-sft
+```
+
+If you rent `8x A100` instead:
+
+```bash
+cd ~/llm
+bash picollm/pretrain_cloud/speedrun.sh --preset 8xa100 --web
 ```
 
 If you rent `1x A100 80GB` instead:
@@ -248,6 +309,8 @@ This script follows the same high-level idea as `nanochat`'s `runs/speedrun.sh`:
 If you rent a different Vast option:
 
 - first try the closest preset instead of editing the file
+- use `--preset 8xh100` for the serious capstone run
+- use `--preset 8xa100` if H100 is unavailable and you still want a strong multi-GPU run
 - use `--preset 2x4090` for a 2-GPU midrange box
 - use `--preset a100-80gb` for a single large-memory GPU
 

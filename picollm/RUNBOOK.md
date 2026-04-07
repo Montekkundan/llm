@@ -249,8 +249,16 @@ Recommended cloud path:
 
 - stage 1: base pretrain from scratch on general text
 - stage 2: full chat SFT on your own checkpoint
-- for this course, the default Vast recommendation is `2x RTX 4090`
-- if you want a simpler single-GPU setup, use `1x A100 80GB`
+- for the serious cloud capstone path, use `8x H100`
+- if you want a slower but still strong alternative, use `8x A100`
+- if you want a cheaper teaching-scale run, use `2x RTX 4090`
+
+For the serious capstone path in this course:
+
+- to get a real from-scratch conversational chatbot quickly, use the serious cloud capstone path on `8x H100`
+- expect about `4 hours` and about `$100` for the full run
+- this follows the same general idea as `nanochat`'s serious cloud speedrun path
+- if you do not want to pay for that run, use the shared Hugging Face checkpoint and still complete the rest of the workflow
 
 If you want the one-command path instead of typing every stage manually, first clone the repo on the Vast box:
 
@@ -260,7 +268,31 @@ cd ~/llm
 bash picollm/pretrain_cloud/speedrun.sh
 ```
 
-That ends in the CLI by default, and it already assumes the course default preset: `2x4090`.
+That ends in the CLI by default, and it uses the budget teaching preset: `2x4090`.
+
+If you want the serious capstone run instead, use:
+
+```bash
+git clone https://github.com/Montekkundan/llm.git
+cd ~/llm
+bash picollm/pretrain_cloud/speedrun.sh --preset 8xh100 --web
+```
+
+If you want the serious capstone run plus Hub upload and W&B telemetry, use:
+
+```bash
+git clone https://github.com/Montekkundan/llm.git
+cd ~/llm
+bash picollm/pretrain_cloud/speedrun.sh \
+  --preset 8xh100 \
+  --web \
+  --hf-repo-id your-name/picollm-chat-sft \
+  --hf-token "$HF_TOKEN" \
+  --report-to wandb \
+  --run-name picollm-capstone-8xh100 \
+  --wandb-project picollm \
+  --wandb-api-key "$WANDB_API_KEY"
+```
 
 If you want the web UI instead:
 
@@ -278,6 +310,13 @@ bash picollm/pretrain_cloud/speedrun.sh \
   --hf-repo-id your-name/picollm-chat-sft
 ```
 
+If you rent `8x A100` instead:
+
+```bash
+cd ~/llm
+bash picollm/pretrain_cloud/speedrun.sh --preset 8xa100 --web
+```
+
 If you rent `1x A100 80GB` instead:
 
 ```bash
@@ -285,7 +324,7 @@ cd ~/llm
 bash picollm/pretrain_cloud/speedrun.sh --preset a100-80gb --web
 ```
 
-If your Vast box has 2 RTX 4090 GPUs, this is the explicit version of the default:
+If your Vast box has 2 RTX 4090 GPUs, this is the explicit version of the budget teaching preset:
 
 ```bash
 cd ~/llm
@@ -304,6 +343,8 @@ This is the repo's `nanochat`-style speedrun path. The commands below stay avail
 If you rent a different Vast box:
 
 - first try the closest preset instead of editing the file
+- use `--preset 8xh100` for the serious capstone run
+- use `--preset 8xa100` if H100 is not available and you still want a strong multi-GPU run
 - use `--preset 2x4090` for a 2-GPU midrange box
 - use `--preset a100-80gb` for a single large-memory GPU
 - only override further if you know why you are changing the training budget

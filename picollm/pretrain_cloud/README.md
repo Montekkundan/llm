@@ -23,6 +23,15 @@ This path is best for:
 - showing why chat behavior is usually a second stage, not the first stage
 - producing a checkpoint that feels like your own small chatbot, not just a tiny language model
 
+## Serious Capstone Path
+
+For the serious capstone path in this course:
+
+- to get a real from-scratch conversational chatbot quickly, use the serious cloud capstone path on `8x H100`
+- expect about `4 hours` and about `$100` for the full run
+- this follows the same general idea as `nanochat`'s serious cloud speedrun path
+- if you do not want to pay for that run, use the shared Hugging Face checkpoint and still complete the rest of the workflow
+
 ## One-command speedrun
 
 If you want a single command that runs tokenizer training, base pretraining, full chat SFT, and then opens an interface at the end, start with:
@@ -35,11 +44,33 @@ bash picollm/pretrain_cloud/speedrun.sh
 
 That ends in the CLI by default.
 
-For this course, the default preset inside the script is:
+For this repo, the default preset inside the script is:
 
 - `2x4090`
 
-That means the script assumes the recommended Vast box is `2x RTX 4090` unless you tell it otherwise.
+That is the budget teaching preset. For the serious capstone run, use `--preset 8xh100`.
+
+Serious capstone run:
+
+```bash
+cd ~/llm
+bash picollm/pretrain_cloud/speedrun.sh --preset 8xh100 --web
+```
+
+Serious capstone run with Hub upload and W&B telemetry:
+
+```bash
+cd ~/llm
+bash picollm/pretrain_cloud/speedrun.sh \
+  --preset 8xh100 \
+  --web \
+  --hf-repo-id your-name/picollm-chat-sft \
+  --hf-token "$HF_TOKEN" \
+  --report-to wandb \
+  --run-name picollm-capstone-8xh100 \
+  --wandb-project picollm \
+  --wandb-api-key "$WANDB_API_KEY"
+```
 
 If you want the web UI instead:
 
@@ -55,6 +86,13 @@ cd ~/llm
 bash picollm/pretrain_cloud/speedrun.sh \
   --web \
   --hf-repo-id your-name/picollm-chat-sft
+```
+
+If you rent `8x A100` instead:
+
+```bash
+cd ~/llm
+bash picollm/pretrain_cloud/speedrun.sh --preset 8xa100 --web
 ```
 
 If you rent `1x A100 80GB` instead:
@@ -76,6 +114,8 @@ This script is the repo's equivalent of a `nanochat`-style speedrun: one command
 If you rent a different machine:
 
 - start with the closest preset instead of editing the file
+- `8xh100` for the serious capstone run
+- `8xa100` for a slightly slower but still strong cloud run
 - `2x4090` for two midrange GPUs
 - `a100-80gb` for one large-memory GPU
 

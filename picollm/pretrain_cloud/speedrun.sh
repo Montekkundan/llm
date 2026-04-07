@@ -13,9 +13,11 @@ PRETRAIN_GRAD_ACCUM="${PICO_PRETRAIN_GRAD_ACCUM:-}"
 SFT_BATCH_SIZE="${PICO_SFT_BATCH_SIZE:-}"
 SFT_GRAD_ACCUM="${PICO_SFT_GRAD_ACCUM:-}"
 HF_REPO_ID="${PICO_HF_REPO_ID:-}"
+HF_TOKEN_VALUE="${PICO_HF_TOKEN:-}"
 REPORT_TO="${PICO_REPORT_TO:-none}"
 RUN_NAME="${PICO_RUN_NAME:-}"
 WANDB_PROJECT="${PICO_WANDB_PROJECT:-}"
+WANDB_API_KEY_VALUE="${PICO_WANDB_API_KEY:-}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -39,6 +41,10 @@ while [[ $# -gt 0 ]]; do
       HF_REPO_ID="$2"
       shift 2
       ;;
+    --hf-token)
+      HF_TOKEN_VALUE="$2"
+      shift 2
+      ;;
     --report-to)
       REPORT_TO="$2"
       shift 2
@@ -51,13 +57,17 @@ while [[ $# -gt 0 ]]; do
       WANDB_PROJECT="$2"
       shift 2
       ;;
+    --wandb-api-key)
+      WANDB_API_KEY_VALUE="$2"
+      shift 2
+      ;;
     --device)
       SERVE_DEVICE="$2"
       shift 2
       ;;
     *)
       echo "Unknown argument: $1" >&2
-      echo "Usage: bash picollm/pretrain_cloud/speedrun.sh [--cli|--web] [--preset 2x4090|a100-80gb] [--nproc-per-node N] [--hf-repo-id REPO] [--report-to none|tensorboard|wandb] [--run-name NAME] [--wandb-project NAME] [--device DEVICE]" >&2
+      echo "Usage: bash picollm/pretrain_cloud/speedrun.sh [--cli|--web] [--preset 2x4090|a100-80gb|8xh100|8xa100] [--nproc-per-node N] [--hf-repo-id REPO] [--hf-token TOKEN] [--report-to none|tensorboard|wandb] [--run-name NAME] [--wandb-project NAME] [--wandb-api-key KEY] [--device DEVICE]" >&2
       exit 1
       ;;
   esac
@@ -77,6 +87,14 @@ if [[ -f "$HOME/.local/bin/env" ]]; then
 fi
 
 uv sync
+
+if [[ -n "$HF_TOKEN_VALUE" ]]; then
+  export HF_TOKEN="$HF_TOKEN_VALUE"
+fi
+
+if [[ -n "$WANDB_API_KEY_VALUE" ]]; then
+  export WANDB_API_KEY="$WANDB_API_KEY_VALUE"
+fi
 
 if [[ "$REPORT_TO" == "wandb" ]]; then
   if [[ -n "${WANDB_API_KEY:-}" ]]; then
@@ -137,9 +155,23 @@ case "$PRESET" in
     SFT_BATCH_SIZE="${SFT_BATCH_SIZE:-8}"
     SFT_GRAD_ACCUM="${SFT_GRAD_ACCUM:-8}"
     ;;
+  8xh100)
+    NPROC_PER_NODE="${NPROC_PER_NODE:-8}"
+    PRETRAIN_BATCH_SIZE="${PRETRAIN_BATCH_SIZE:-8}"
+    PRETRAIN_GRAD_ACCUM="${PRETRAIN_GRAD_ACCUM:-16}"
+    SFT_BATCH_SIZE="${SFT_BATCH_SIZE:-16}"
+    SFT_GRAD_ACCUM="${SFT_GRAD_ACCUM:-8}"
+    ;;
+  8xa100)
+    NPROC_PER_NODE="${NPROC_PER_NODE:-8}"
+    PRETRAIN_BATCH_SIZE="${PRETRAIN_BATCH_SIZE:-4}"
+    PRETRAIN_GRAD_ACCUM="${PRETRAIN_GRAD_ACCUM:-16}"
+    SFT_BATCH_SIZE="${SFT_BATCH_SIZE:-8}"
+    SFT_GRAD_ACCUM="${SFT_GRAD_ACCUM:-8}"
+    ;;
   *)
     echo "Unknown preset: $PRESET" >&2
-    echo "Supported presets: 2x4090, a100-80gb" >&2
+    echo "Supported presets: 2x4090, a100-80gb, 8xh100, 8xa100" >&2
     exit 1
     ;;
 esac

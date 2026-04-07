@@ -18,6 +18,7 @@ def main() -> None:
     parser.add_argument("--disk-gb", type=int, default=80)
     parser.add_argument("--runtype", default="ssh_direct")
     parser.add_argument("--hf-token", default=None, help="Optional HF token to inject into the instance env.")
+    parser.add_argument("--wandb-api-key", default=None, help="Optional W&B API key to inject into the instance env.")
     parser.add_argument("--repo-url", default="https://github.com/montekkundan/llm.git")
     parser.add_argument("--branch", default="main")
     parser.add_argument("--onstart-file", default=None, help="Optional shell script to run on instance startup.")
@@ -26,6 +27,8 @@ def main() -> None:
     env = {}
     if args.hf_token:
         env["HF_TOKEN"] = args.hf_token
+    if args.wandb_api_key:
+        env["WANDB_API_KEY"] = args.wandb_api_key
 
     onstart = None
     if args.onstart_file:
