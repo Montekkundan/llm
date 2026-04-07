@@ -33,19 +33,39 @@ bash picollm/pretrain_cloud/speedrun.sh
 
 That ends in the CLI by default.
 
+For this course, the default preset inside the script is:
+
+- `2x4090`
+
+That means the script assumes the recommended Vast box is `2x RTX 4090` unless you tell it otherwise.
+
 If you want the web UI instead:
 
 ```bash
 bash picollm/pretrain_cloud/speedrun.sh --web
 ```
 
-If your box has more than one GPU, pass the GPU count:
+If you rent `1x A100 80GB` instead:
 
 ```bash
-bash picollm/pretrain_cloud/speedrun.sh --web --nproc-per-node 2
+bash picollm/pretrain_cloud/speedrun.sh --preset a100-80gb --web
 ```
 
 This script is the repo's equivalent of a `nanochat`-style speedrun: one command, same stages, less manual typing. Use the step-by-step commands below when you want to understand each stage directly.
+
+If you rent a different machine:
+
+- start with the closest preset instead of editing the file
+- `2x4090` for two midrange GPUs
+- `a100-80gb` for one large-memory GPU
+
+If you still want to override the training shape without editing the file, use:
+
+- `--nproc-per-node N`
+- `PICO_PRETRAIN_BATCH_SIZE`
+- `PICO_PRETRAIN_GRAD_ACCUM`
+- `PICO_SFT_BATCH_SIZE`
+- `PICO_SFT_GRAD_ACCUM`
 
 ## 1. Train a tokenizer
 
@@ -294,7 +314,13 @@ Examples:
 
 ## 6. Vast.ai helper scripts
 
-Known-good search command for a budget-friendly multi-GPU run:
+Default recommendation for this course:
+
+- `2x RTX 4090`
+
+That is the default because it is usually the best budget/performance path for a serious small-model run.
+
+Search command:
 
 ```bash
 uv run python -m picollm.pretrain_cloud.vast_search_offers \
@@ -305,7 +331,7 @@ uv run python -m picollm.pretrain_cloud.vast_search_offers \
   --limit 10
 ```
 
-If you want more room per GPU, search for an A100 80GB listing. Use the exact GPU label you see in the Vast marketplace. A common label is `A100 SXM4`.
+If you want a simpler single-GPU setup, search for an A100 80GB listing. Use the exact GPU label you see in the Vast marketplace. A common label is `A100 SXM4`.
 
 ```bash
 uv run python -m picollm.pretrain_cloud.vast_search_offers \

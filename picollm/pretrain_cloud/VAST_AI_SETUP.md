@@ -117,8 +117,14 @@ Host ssh1.vast.ai
 
 For a strong from-scratch run, start by looking for either:
 
-- `2x RTX 4090` if you want the best budget/performance path
+- `2x RTX 4090` if you want the course default
 - `1x A100 80GB` if you want the simplest serious single-GPU path
+
+The default recommendation in this course is:
+
+- `2x RTX 4090`
+
+That is what the `speedrun.sh` script assumes unless you change presets.
 
 Two RTX 4090s:
 
@@ -217,7 +223,7 @@ If you want the one-command path instead of running each stage manually, use:
 bash picollm/pretrain_cloud/speedrun.sh
 ```
 
-That ends in the CLI by default.
+That ends in the CLI by default and assumes the `2x4090` preset.
 
 If you want the web UI at the end:
 
@@ -225,13 +231,29 @@ If you want the web UI at the end:
 bash picollm/pretrain_cloud/speedrun.sh --web
 ```
 
-If your box has 2 GPUs:
+If you rent `1x A100 80GB` instead:
 
 ```bash
-bash picollm/pretrain_cloud/speedrun.sh --web --nproc-per-node 2
+bash picollm/pretrain_cloud/speedrun.sh --preset a100-80gb --web
 ```
 
 This script follows the same high-level idea as `nanochat`'s `runs/speedrun.sh`: tokenizer, base train, chat SFT, then immediate interaction.
+
+If you rent a different Vast option:
+
+- first try the closest preset instead of editing the file
+- use `--preset 2x4090` for a 2-GPU midrange box
+- use `--preset a100-80gb` for a single large-memory GPU
+
+If you still need to override the run without editing the file, use:
+
+- `--nproc-per-node N`
+- `PICO_PRETRAIN_BATCH_SIZE`
+- `PICO_PRETRAIN_GRAD_ACCUM`
+- `PICO_SFT_BATCH_SIZE`
+- `PICO_SFT_GRAD_ACCUM`
+
+So students usually do not need to edit `speedrun.sh`. They only switch presets or override a small number of knobs if their hardware is different.
 
 If you want the step-by-step path instead, keep going:
 

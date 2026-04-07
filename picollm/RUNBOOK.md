@@ -247,7 +247,8 @@ Recommended cloud path:
 
 - stage 1: base pretrain from scratch on general text
 - stage 2: full chat SFT on your own checkpoint
-- use a multi-GPU Vast box if you want the strongest result in a reasonable amount of time
+- for this course, the default Vast recommendation is `2x RTX 4090`
+- if you want a simpler single-GPU setup, use `1x A100 80GB`
 
 If you want the one-command path instead of typing every stage manually, use:
 
@@ -255,7 +256,7 @@ If you want the one-command path instead of typing every stage manually, use:
 bash picollm/pretrain_cloud/speedrun.sh
 ```
 
-That ends in the CLI by default.
+That ends in the CLI by default, and it already assumes the course default preset: `2x4090`.
 
 If you want the web UI instead:
 
@@ -263,13 +264,36 @@ If you want the web UI instead:
 bash picollm/pretrain_cloud/speedrun.sh --web
 ```
 
-If your Vast box has 2 GPUs:
+If you rent `1x A100 80GB` instead:
 
 ```bash
-bash picollm/pretrain_cloud/speedrun.sh --web --nproc-per-node 2
+bash picollm/pretrain_cloud/speedrun.sh --preset a100-80gb --web
+```
+
+If your Vast box has 2 RTX 4090 GPUs, this is the explicit version of the default:
+
+```bash
+bash picollm/pretrain_cloud/speedrun.sh --preset 2x4090 --web
 ```
 
 This is the repo's `nanochat`-style speedrun path. The commands below stay available when you want to understand or modify each stage directly.
+
+If you rent a different Vast box:
+
+- first try the closest preset instead of editing the file
+- use `--preset 2x4090` for a 2-GPU midrange box
+- use `--preset a100-80gb` for a single large-memory GPU
+- only override further if you know why you are changing the training budget
+
+If you need to change the speedrun behavior without editing the file:
+
+- `--nproc-per-node N` overrides the GPU count
+- `PICO_PRETRAIN_BATCH_SIZE`
+- `PICO_PRETRAIN_GRAD_ACCUM`
+- `PICO_SFT_BATCH_SIZE`
+- `PICO_SFT_GRAD_ACCUM`
+
+So students usually do not need to edit `speedrun.sh`. They can switch presets or override a few knobs from the command line or environment if their hardware differs.
 
 Run:
 
@@ -421,7 +445,13 @@ So yes, you can swap datasets and start training, but the split and text column 
 
 For this run, multi-GPU is the normal path, not just an experiment.
 
-Known-good search command for the budget path:
+Default recommendation for this course:
+
+- `2x RTX 4090`
+
+That is the default because it is usually the best budget/performance path for a serious small-model run.
+
+Search command:
 
 ```bash
 uv run python -m picollm.pretrain_cloud.vast_search_offers \
@@ -432,7 +462,7 @@ uv run python -m picollm.pretrain_cloud.vast_search_offers \
   --limit 10
 ```
 
-If you want a larger single GPU, search for an A100 80GB listing. Use the exact Vast UI label. A common label is `A100 SXM4`.
+If you want a larger single GPU with a simpler setup, search for an A100 80GB listing. Use the exact Vast UI label. A common label is `A100 SXM4`.
 
 ```bash
 uv run python -m picollm.pretrain_cloud.vast_search_offers \
@@ -478,6 +508,21 @@ The rough effective global batch is:
 - `per_device_batch_size × num_gpus × grad_accum`
 
 So with `--batch-size 2`, `--grad-accum 16`, and 2 GPUs, the effective global batch is `64` sequences per optimizer step.
+
+For the one-command speedrun:
+
+- default preset: `2x4090`
+- single large GPU preset: `a100-80gb`
+
+Examples:
+
+```bash
+# course default
+bash picollm/pretrain_cloud/speedrun.sh --web
+
+# one large GPU
+bash picollm/pretrain_cloud/speedrun.sh --preset a100-80gb --web
+```
 
 ## 9. Reuse that checkpoint locally
 
