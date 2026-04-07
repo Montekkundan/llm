@@ -10,7 +10,7 @@ Then compare:
 - instruction following
 - tone
 - whether the adapted model answers like a lecture assistant
-- whether it consistently uses a structured teaching format
+- whether it consistently uses a structured format
 - whether the base model stays more general-purpose
 
 ## Core prompts
@@ -20,7 +20,7 @@ Then compare:
 - `What is LoRA?`
 - `Use one analogy to explain self-attention.`
 
-## More lecture-friendly prompts
+## More prompts
 
 - `What does quantization do?`
 - `What is the difference between a base model and an SFT model?`

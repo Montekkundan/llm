@@ -2,14 +2,14 @@
 
 This repository is the runnable companion to the lecture notes at `lectures.montek.dev`.
 
-The course has two layers:
+It has two layers:
 
-- theory and teaching narrative in your lecture notes
+- theory and explanations in the lecture notes
 - runnable notebooks, scripts, and demo apps in this repo
 
 ## Start Here
 
-Students should use the lecture notes for the full explanation, then open the linked code from the relevant lesson.
+Use the lecture notes for the full explanation, then open the linked code from the relevant lesson.
 
 ## Student Setup
 
@@ -52,8 +52,8 @@ Use these directories by purpose:
 - `notebooks/`: live lecture walkthroughs
 - `scripts/`: runnable demo scripts and small apps
 - `apps/`: production-style frontend apps
-- `course_tools/`: tiny from-scratch runtime used by the teaching demos
-- `picollm/`: serious model workflow for the final chatbot lectures
+- `course_tools/`: tiny from-scratch runtime used by the smaller demos
+- `picollm/`: serious model workflow for the final chatbot path
 
 ## Final Demo Docs
 
@@ -79,7 +79,7 @@ For the final lecture sequence:
 
 ## Cite
 
-If you want to cite the reference repos behind the teaching flow, cite both Raschka and Karpathy:
+If you want to cite the reference repos behind this workflow, cite both Raschka and Karpathy:
 
 ```yaml
 cff-version: 1.2.0

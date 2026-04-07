@@ -8,7 +8,7 @@ It uses:
 - AI SDK `streamText`
 - an OpenAI-compatible `picollm` backend
 
-The teaching point is the same as the web app:
+The core point is the same as the web app:
 
 - the UI layer is separate
 - the model backend is separate
@@ -34,7 +34,7 @@ This app shows the parallel terminal story:
 - same model identity
 - same OpenAI-compatible contract
 
-That makes it a good teaching bridge toward tools like Claude Code, Codex CLI, OpenCode, and Gemini CLI.
+That makes it a good bridge toward tools like Claude Code, Codex CLI, OpenCode, and Gemini CLI.
 
 The important caveat is:
 

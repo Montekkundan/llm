@@ -1,10 +1,10 @@
 # `sft_lora/`
 
-This is the serious fine-tuning path for the course.
+This is the serious fine-tuning path in the repo.
 
-Use it when you want the final chatbot demo to answer well without pretending that a tiny from-scratch model will behave like a modern assistant.
+Use it when you want the final chatbot path to answer well without pretending that a tiny from-scratch model will behave like a modern assistant.
 
-The recommended teaching story is:
+The recommended flow is:
 
 1. load a small instruct-capable base model
 2. prepare chat-format data
@@ -15,7 +15,7 @@ The recommended teaching story is:
 
 ## Recommended models
 
-These are good lecture-scale models:
+These are good small models:
 
 - `Qwen/Qwen2.5-1.5B-Instruct`
 - `Qwen/Qwen2.5-3B-Instruct`
@@ -72,8 +72,8 @@ uv run python -m picollm.sft_lora.merge_adapter \
 - Mac M-series: `--device mps`
 - NVIDIA: `--device cuda`
 - CPU-only machines: `--device cpu`
-- classroom-safe default: `--device auto`
+- simple default: `--device auto`
 
 ## What this is for
 
-This is the right path for the final lecture demo if you want responses that sound like a real chatbot instead of a toy language model.
+This is the right path if you want responses that sound like a real chatbot instead of a toy language model.

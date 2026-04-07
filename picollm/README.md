@@ -1,26 +1,26 @@
 # picoLLM
 
-`picollm/` is the serious-model track for this course.
+`picollm/` is the serious-model track in this repo.
 
-Start with [RUNBOOK.md](/Users/montekkundan/Developer/ML/llm/picollm/RUNBOOK.md) if you want the full student-facing execution flow in one place.
+Start with [RUNBOOK.md](/Users/montekkundan/Developer/ML/llm/picollm/RUNBOOK.md) if you want the full execution flow in one place.
 
 The rest of this repo teaches how language models work from scratch.
 
-This folder teaches the practical bridge to a real chatbot:
+This folder is the practical bridge to a real chatbot:
 
 - cloud pretraining when you want your own checkpoint
-- LoRA fine-tuning when you want a classroom-realistic tuning workflow
+- LoRA fine-tuning when you want a realistic tuning workflow
 - local serving on Mac, Windows, or Linux
 - frontend integration through a Vercel AI SDK app
 
 ## Why this exists next to the from-scratch code
 
-The tiny model in the teaching notebooks is good for explanation.
+The tiny model in the notebooks is good for explanation.
 It is not good enough to act like a modern chatbot.
 
-So the course now has two layers:
+So the repo has two layers:
 
-- `notebooks/` and `scripts/`: concept-first teaching code
+- `notebooks/` and `scripts/`: concept-first runnable code
 - `picollm/`: serious model workflow for the final demo
 
 ## Should we copy nanochat's FP8 path?
@@ -29,16 +29,16 @@ No, not for this folder.
 
 `nanochat/fp8.py` exists because nanochat is pushing much harder on throughput and memory efficiency on supported GPU stacks. That is a systems-optimization choice, not a conceptual requirement.
 
-For this course:
+For this repo:
 
 - keep `picollm/` simple
 - use standard `transformers` + `peft` + `trl`
 - focus on portable training, serving, and evaluation
-- point students to nanochat after the lecture if they want deeper systems optimization work
+- move to nanochat later if you want deeper systems optimization work
 
 In other words: yes, nanochat is much more optimized. That is exactly why it is a good "what to study next" repo after the concepts are already clear.
 
-## Recommended classroom flow
+## Recommended flow
 
 ### Path A: Serious chatbot demo on a laptop
 

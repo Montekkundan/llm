@@ -1,6 +1,6 @@
 # picoLLM Runbook
 
-This is the single student-facing doc for the serious chatbot path.
+This is the single run doc for the serious chatbot path.
 
 Use this file when you want to run:
 
@@ -70,7 +70,7 @@ uv run python -m picollm.sft_lora.evaluate \
   --device auto
 ```
 
-Lecture-friendly side-by-side comparison:
+Side-by-side comparison:
 
 ```bash
 uv run python scripts/real_chatbot_workflow/compare_base_vs_lora.py \
@@ -89,10 +89,10 @@ This default LoRA demo is designed to show a visible behavior shift in:
 - formatting
 - instruction following
 
-It is not meant to make the adapted model broadly "smarter" than Qwen on general knowledge. The right classroom comparison is:
+It is not meant to make the adapted model broadly "smarter" than Qwen on general knowledge. The useful comparison is:
 
 - base model answers well but often ignores your exact formatting constraints
-- adapted model follows the course-style answer format more consistently
+- adapted model follows the target answer format more consistently
 
 CLI:
 
@@ -323,7 +323,7 @@ If you want a stronger tiny model than the old `wikitext` recipe, use one of the
 - `roneneldan/TinyStories` for a cleaner GPT-style model
 - `daily_dialog` with `--alternating-chat-roles` for a more conversational tiny model
 
-These are course-friendly defaults. `nanochat` uses a different, more research-oriented data path, and you can absolutely swap that in later once this workflow is clear.
+These are repo defaults. `nanochat` uses a different, more research-oriented data path, and you can absolutely swap that in later once this workflow is clear.
 
 When training finishes, your checkpoint folder on the Vast machine will usually be:
 
@@ -441,7 +441,7 @@ uv run python -m picollm.serve.chat_web \
 
 For a more usable tiny model, prefer the `TinyStories` or `daily_dialog` commands above instead of the older `wikitext` path.
 
-If you want a good chat demo, keep using the pretrained-model or LoRA sections of this runbook. Use the cloud pretraining path to show what from-scratch training looks like, not to replace the final chatbot demo.
+If you want the best chat behavior, keep using the pretrained-model or LoRA sections of this runbook. Use the cloud pretraining path to see what from-scratch training looks like.
 
 So the practical cloud loop is:
 

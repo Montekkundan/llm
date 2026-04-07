@@ -1,8 +1,8 @@
 # `pretrain_cloud/`
 
-This path is for the "we trained our own model" part of the course.
+This path is for the "we trained our own model" part of the repo.
 
-Use it when you want a full pretraining story:
+Use it when you want a full pretraining path:
 
 - train a tokenizer
 - pretrain a GPT-style model from scratch
@@ -18,11 +18,11 @@ Use a rented GPU for this track.
 - Hugging Face Jobs is cleaner when you want a managed training workflow and Hub integration: [Jobs overview](https://huggingface.co/docs/huggingface_hub/guides/jobs)
 - If you want a CLI-first Vast workflow in this repo, use [VAST_AI_SETUP.md](/Users/montekkundan/Developer/ML/llm/picollm/pretrain_cloud/VAST_AI_SETUP.md)
 
-For the lecture, this path is best for:
+This path is best for:
 
 - showing what full pretraining looks like
 - showing why cloud GPUs matter
-- producing a checkpoint that students can later download and run locally
+- producing a checkpoint you can later download and run locally
 
 ## 1. Train a tokenizer
 
@@ -107,7 +107,7 @@ uv run python -m picollm.pretrain_cloud.vast_search_offers \
   --limit 10
 ```
 
-Keep `--num-gpus 1` for this path. The current script is a single-process Trainer workflow, so a stronger single GPU is more useful than renting multiple GPUs here.
+Start with `--num-gpus 1` if you want the simplest setup. The current script also supports multi-GPU via `torchrun` when you want to experiment further.
 
 Create instance:
 
