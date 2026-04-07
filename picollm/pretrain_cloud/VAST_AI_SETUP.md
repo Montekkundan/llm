@@ -203,19 +203,17 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 source ~/.zshrc 2>/dev/null || source ~/.bashrc 2>/dev/null || true
 uv sync
 uv run python -m picollm.pretrain_cloud.train_tokenizer \
-  --dataset-name Akhil391/daily_dialog \
-  --dataset-split train \
-  --text-column dialog \
-  --alternating-chat-roles \
+  --dataset-name HuggingFaceH4/ultrachat_200k \
+  --dataset-split train_sft \
+  --text-column messages \
   --vocab-size 16000 \
   --output-dir artifacts/picollm/tokenizer
 
 uv run python -m picollm.pretrain_cloud.train \
   --tokenizer-path artifacts/picollm/tokenizer \
-  --dataset-name Akhil391/daily_dialog \
-  --dataset-split train \
-  --text-column dialog \
-  --alternating-chat-roles \
+  --dataset-name HuggingFaceH4/ultrachat_200k \
+  --dataset-split train_sft \
+  --text-column messages \
   --output-dir artifacts/picollm/pretrain-run \
   --block-size 256 \
   --layers 8 \
@@ -268,10 +266,9 @@ If your Vast instance has multiple GPUs, launch the same training script with `t
 ```bash
 uv run torchrun --nproc_per_node=2 -m picollm.pretrain_cloud.train \
   --tokenizer-path artifacts/picollm/tokenizer \
-  --dataset-name Akhil391/daily_dialog \
-  --dataset-split train \
-  --text-column dialog \
-  --alternating-chat-roles \
+  --dataset-name HuggingFaceH4/ultrachat_200k \
+  --dataset-split train_sft \
+  --text-column messages \
   --output-dir artifacts/picollm/pretrain-run \
   --block-size 256 \
   --layers 8 \
@@ -320,7 +317,7 @@ If the folder is there and contains model files, you can exit the SSH session.
 
 Why these datasets:
 
-- `Akhil391/daily_dialog` is the default if you want a small conversational model
+- `HuggingFaceH4/ultrachat_200k` is the default if you want a small conversational model with an industry-standard `messages` format
 - `roneneldan/TinyStories` is better if you want a small coherent story model
 - both are public and work out of the box with these scripts
 
@@ -355,7 +352,7 @@ uv run python -m picollm.serve.chat_web \
   --device auto
 ```
 
-For a more usable tiny model, prefer the `Akhil391/daily_dialog` or `TinyStories` commands above instead of the older `wikitext` path.
+For a more usable tiny model, prefer the `HuggingFaceH4/ultrachat_200k` or `TinyStories` commands above instead of the older `wikitext` path.
 
 ## 7. Clean up after the run
 

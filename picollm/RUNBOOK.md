@@ -246,7 +246,7 @@ Then SSH into the Vast machine and run.
 Recommended cloud path:
 
 - use a public Hugging Face dataset instead of a local text file
-- `Akhil391/daily_dialog` is the default if you want a small conversational model
+- `HuggingFaceH4/ultrachat_200k` is the default if you want a small conversational model
 - `roneneldan/TinyStories` is optional if you want a small coherent story model
 
 Run:
@@ -259,19 +259,17 @@ source ~/.zshrc 2>/dev/null || source ~/.bashrc 2>/dev/null || true
 uv sync
 
 uv run python -m picollm.pretrain_cloud.train_tokenizer \
-  --dataset-name Akhil391/daily_dialog \
-  --dataset-split train \
-  --text-column dialog \
-  --alternating-chat-roles \
+  --dataset-name HuggingFaceH4/ultrachat_200k \
+  --dataset-split train_sft \
+  --text-column messages \
   --vocab-size 16000 \
   --output-dir artifacts/picollm/tokenizer
 
 uv run python -m picollm.pretrain_cloud.train \
   --tokenizer-path artifacts/picollm/tokenizer \
-  --dataset-name Akhil391/daily_dialog \
-  --dataset-split train \
-  --text-column dialog \
-  --alternating-chat-roles \
+  --dataset-name HuggingFaceH4/ultrachat_200k \
+  --dataset-split train_sft \
+  --text-column messages \
   --output-dir artifacts/picollm/pretrain-run \
   --block-size 256 \
   --layers 8 \
@@ -320,7 +318,7 @@ Optional:
 
 If you want a stronger tiny model than the old `wikitext` recipe, use one of these:
 
-- `Akhil391/daily_dialog` with `--alternating-chat-roles` for a conversational tiny model
+- `HuggingFaceH4/ultrachat_200k` for a conversational tiny model with standard `messages`
 - `roneneldan/TinyStories` for a cleaner story-style tiny model
 
 If the same Vast machine is still running, you can start another run there. You do not need to create a new machine every time. Before retraining, either remove the old artifacts or use a new output directory:
@@ -364,10 +362,9 @@ Single GPU:
 ```bash
 uv run python -m picollm.pretrain_cloud.train \
   --tokenizer-path artifacts/picollm/tokenizer \
-  --dataset-name Akhil391/daily_dialog \
-  --dataset-split train \
-  --text-column dialog \
-  --alternating-chat-roles \
+  --dataset-name HuggingFaceH4/ultrachat_200k \
+  --dataset-split train_sft \
+  --text-column messages \
   --output-dir artifacts/picollm/pretrain-run \
   --block-size 256 \
   --layers 8 \
@@ -386,10 +383,9 @@ Two GPUs on one machine:
 ```bash
 uv run torchrun --nproc_per_node=2 -m picollm.pretrain_cloud.train \
   --tokenizer-path artifacts/picollm/tokenizer \
-  --dataset-name Akhil391/daily_dialog \
-  --dataset-split train \
-  --text-column dialog \
-  --alternating-chat-roles \
+  --dataset-name HuggingFaceH4/ultrachat_200k \
+  --dataset-split train_sft \
+  --text-column messages \
   --output-dir artifacts/picollm/pretrain-run \
   --block-size 256 \
   --layers 8 \
@@ -447,7 +443,7 @@ uv run python -m picollm.serve.chat_web \
   --device auto
 ```
 
-For a more usable tiny model, prefer the `Akhil391/daily_dialog` or `TinyStories` commands above instead of the older `wikitext` path.
+For a more usable tiny model, prefer the `HuggingFaceH4/ultrachat_200k` or `TinyStories` commands above instead of the older `wikitext` path.
 
 If you want the best chat behavior, keep using the pretrained-model or LoRA sections of this runbook. Use the cloud pretraining path to see what from-scratch training looks like.
 

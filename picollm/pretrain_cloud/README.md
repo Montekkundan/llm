@@ -28,10 +28,9 @@ This path is best for:
 
 ```bash
 uv run python -m picollm.pretrain_cloud.train_tokenizer \
-  --dataset-name Akhil391/daily_dialog \
-  --dataset-split train \
-  --text-column dialog \
-  --alternating-chat-roles \
+  --dataset-name HuggingFaceH4/ultrachat_200k \
+  --dataset-split train_sft \
+  --text-column messages \
   --vocab-size 16000 \
   --output-dir artifacts/picollm/tokenizer
 ```
@@ -49,10 +48,9 @@ uv run python -m picollm.pretrain_cloud.train_tokenizer \
 ```bash
 uv run python -m picollm.pretrain_cloud.train \
   --tokenizer-path artifacts/picollm/tokenizer \
-  --dataset-name Akhil391/daily_dialog \
-  --dataset-split train \
-  --text-column dialog \
-  --alternating-chat-roles \
+  --dataset-name HuggingFaceH4/ultrachat_200k \
+  --dataset-split train_sft \
+  --text-column messages \
   --output-dir artifacts/picollm/pretrain-run \
   --layers 8 \
   --heads 8 \
@@ -146,10 +144,9 @@ uv run python -m picollm.pretrain_cloud.vast_access \
 ```bash
 uv run python -m picollm.pretrain_cloud.eval \
   --model artifacts/picollm/pretrain-run \
-  --dataset-name Akhil391/daily_dialog \
-  --dataset-split validation \
-  --text-column dialog \
-  --alternating-chat-roles \
+  --dataset-name HuggingFaceH4/ultrachat_200k \
+  --dataset-split test_sft \
+  --text-column messages \
   --sample-prompt "hi" \
   --output artifacts/picollm/pretrain_eval.json
 ```
@@ -198,7 +195,7 @@ uv run python -m picollm.serve.chat_cli \
   --device auto
 ```
 
-For the default conversational path, use `Akhil391/daily_dialog` with `--alternating-chat-roles`. If you want a story-style tiny model instead, use `TinyStories`.
+For the default conversational path, use `HuggingFaceH4/ultrachat_200k`. It already stores chat turns in a `messages` structure with explicit roles, so this path matches the standard chat-dataset shape used in many modern SFT pipelines. If you want a story-style tiny model instead, use `TinyStories`.
 
 ## 6. Clean up after the run
 

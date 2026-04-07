@@ -9,21 +9,7 @@ import torch
 from datasets import Dataset, load_dataset
 
 from picollm.common import generate_reply, load_generation_bundle
-
-
-def normalize_text(value: object, alternating_chat_roles: bool) -> str:
-    if isinstance(value, list):
-        parts = [str(item).strip() for item in value if str(item).strip()]
-        if not parts:
-            return ""
-        if alternating_chat_roles:
-            rendered = []
-            for index, part in enumerate(parts):
-                role = "<|user|>" if index % 2 == 0 else "<|assistant|>"
-                rendered.append(f"{role} {part}")
-            return "\n".join(rendered)
-        return "\n".join(parts)
-    return str(value).strip()
+from picollm.pretrain_cloud.text_format import normalize_text
 
 
 def load_texts(
