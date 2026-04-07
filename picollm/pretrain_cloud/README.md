@@ -45,6 +45,14 @@ If you want the web UI instead:
 bash picollm/pretrain_cloud/speedrun.sh --web
 ```
 
+If you also want the final chatbot pushed to the Hub at the end:
+
+```bash
+bash picollm/pretrain_cloud/speedrun.sh \
+  --web \
+  --hf-repo-id your-name/picollm-chat-sft
+```
+
 If you rent `1x A100 80GB` instead:
 
 ```bash
@@ -66,6 +74,15 @@ If you still want to override the training shape without editing the file, use:
 - `PICO_PRETRAIN_GRAD_ACCUM`
 - `PICO_SFT_BATCH_SIZE`
 - `PICO_SFT_GRAD_ACCUM`
+
+If you pass `--hf-repo-id`, the script will check Hugging Face auth before training starts.
+
+It accepts either:
+
+- `HF_TOKEN` exported in the shell
+- an existing `hf auth login` session
+
+If neither exists, the script stops immediately with an error instead of waiting until the end of the run.
 
 ## 1. Train a tokenizer
 

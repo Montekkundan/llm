@@ -18,6 +18,16 @@ Or export:
 export HF_TOKEN="..."
 ```
 
+The one-command cloud path also accepts:
+
+```bash
+bash picollm/pretrain_cloud/speedrun.sh \
+  --web \
+  --hf-repo-id your-name/picollm-chat-sft
+```
+
+If you use that flag, the script checks for either `HF_TOKEN` or an existing `hf auth login` session before training starts.
+
 Official docs:
 
 - [User access tokens](https://huggingface.co/docs/hub/main/en/security-tokens)

@@ -264,6 +264,14 @@ If you want the web UI instead:
 bash picollm/pretrain_cloud/speedrun.sh --web
 ```
 
+If you also want the final chatbot pushed to the Hub at the end:
+
+```bash
+bash picollm/pretrain_cloud/speedrun.sh \
+  --web \
+  --hf-repo-id your-name/picollm-chat-sft
+```
+
 If you rent `1x A100 80GB` instead:
 
 ```bash
@@ -294,6 +302,15 @@ If you need to change the speedrun behavior without editing the file:
 - `PICO_SFT_GRAD_ACCUM`
 
 So students usually do not need to edit `speedrun.sh`. They can switch presets or override a few knobs from the command line or environment if their hardware differs.
+
+If you pass `--hf-repo-id`, the script checks Hugging Face auth before training starts.
+
+It accepts either:
+
+- `HF_TOKEN` exported in the shell
+- an existing `hf auth login` session
+
+If neither exists, it stops immediately with a clear error instead of waiting until the run is over.
 
 Run:
 
