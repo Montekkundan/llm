@@ -8,10 +8,12 @@ from .vast_common import request
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Show a Vast.ai instance for picoLLM training.")
-    parser.add_argument("--instance-id", type=int, required=True)
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--new-contract", dest="contract_id", type=int, help="The new_contract value returned by Vast.")
+    group.add_argument("--instance-id", dest="contract_id", type=int, help="Backward-compatible alias for --new-contract.")
     args = parser.parse_args()
 
-    result = request("GET", f"/instances/{args.instance_id}/")
+    result = request("GET", f"/instances/{args.contract_id}/")
     instance = result.get("instances", {})
     payload = {
         "id": instance.get("id"),

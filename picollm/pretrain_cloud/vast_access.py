@@ -9,13 +9,15 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Print SSH/SCP/rsync commands for a Vast.ai instance. This helper does not execute them."
     )
-    parser.add_argument("--instance-id", type=int, required=True)
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--new-contract", dest="contract_id", type=int, help="The new_contract value returned by Vast.")
+    group.add_argument("--instance-id", dest="contract_id", type=int, help="Backward-compatible alias for --new-contract.")
     parser.add_argument("--local-dir", default="artifacts/picollm/pretrain-run")
     parser.add_argument("--remote-dir", default="/workspace/llm/artifacts/picollm/pretrain-run")
     parser.add_argument("--ssh-user", default="root")
     args = parser.parse_args()
 
-    result = request("GET", f"/instances/{args.instance_id}/")
+    result = request("GET", f"/instances/{args.contract_id}/")
     instance = result.get("instances", {})
     host = instance.get("ssh_host")
     port = instance.get("ssh_port")
