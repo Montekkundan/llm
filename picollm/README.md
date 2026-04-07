@@ -101,10 +101,26 @@ See:
 
 - [pretrain_cloud/README.md](/Users/montekkundan/Developer/ML/llm/picollm/pretrain_cloud/README.md)
 - [sft_lora/README.md](/Users/montekkundan/Developer/ML/llm/picollm/sft_lora/README.md)
+- [rlhf/README.md](/Users/montekkundan/Developer/ML/llm/picollm/rlhf/README.md)
 - [serve/README.md](/Users/montekkundan/Developer/ML/llm/picollm/serve/README.md)
 - [eval/README.md](/Users/montekkundan/Developer/ML/llm/picollm/eval/README.md)
 - [HUGGING_FACE_SETUP.md](/Users/montekkundan/Developer/ML/llm/picollm/HUGGING_FACE_SETUP.md)
 - [pretrain_cloud/VAST_AI_SETUP.md](/Users/montekkundan/Developer/ML/llm/picollm/pretrain_cloud/VAST_AI_SETUP.md)
+
+## Advanced research utilities
+
+For the advanced GPT-only lecture layer, `picollm/` now also includes:
+
+- `picollm/rlhf/dpo_finetune.py`
+  - minimal DPO post-training path
+- `picollm/eval/run_lm_eval.py`
+  - wrapper for `lm-eval-harness`
+- `picollm/eval/safety_red_team.py`
+  - small safety and jailbreak-oriented prompt suite runner
+- `picollm/analysis/inspect_activations.py`
+  - small hidden-state and attention inspection helper
+- `picollm/eval/report_template.md`
+  - student-facing experiment report template
 
 ## OS guidance
 

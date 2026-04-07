@@ -289,6 +289,23 @@ uv run python -m picollm.eval.latency_benchmark \
   --model artifacts/picollm/chat-sft-run \
   --output artifacts/picollm/latency_report.json
 ```
+
+Run a small safety-oriented red-team pass:
+
+```bash
+uv run python -m picollm.eval.safety_red_team \
+  --model artifacts/picollm/chat-sft-run \
+  --output artifacts/picollm/safety_report.json
+```
+
+If you want a minimal preference-optimization demo after SFT, use DPO:
+
+```bash
+uv run python -m picollm.rlhf.dpo_finetune \
+  --model artifacts/picollm/chat-sft-run \
+  --dataset preferences.jsonl \
+  --output-dir artifacts/picollm/dpo-run
+```
 - for the serious cloud capstone path, use `8x H100`
 - if you want a slower but still strong alternative, use `8x A100`
 - if you want a cheaper teaching-scale run, use `2x RTX 4090`
