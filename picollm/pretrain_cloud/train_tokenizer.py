@@ -24,9 +24,15 @@ SPECIAL_TOKENS = [
 ]
 
 
-def iter_texts(dataset_name: str | None, dataset_split: str, text_column: str, text_files: list[str]) -> list[str]:
+def iter_texts(
+    dataset_name: str | None,
+    dataset_config: str | None,
+    dataset_split: str,
+    text_column: str,
+    text_files: list[str],
+) -> list[str]:
     if dataset_name:
-        dataset = load_dataset(dataset_name, split=dataset_split)
+        dataset = load_dataset(dataset_name, dataset_config, split=dataset_split)
         return [str(item[text_column]) for item in dataset if str(item[text_column]).strip()]
     texts: list[str] = []
     for path in text_files:
@@ -37,6 +43,7 @@ def iter_texts(dataset_name: str | None, dataset_split: str, text_column: str, t
 def build_argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Train a BPE tokenizer for picoLLM cloud pretraining.")
     parser.add_argument("--dataset-name", default=None)
+    parser.add_argument("--dataset-config", default=None)
     parser.add_argument("--dataset-split", default="train")
     parser.add_argument("--text-column", default="text")
     parser.add_argument("--text-file", action="append", default=[])
@@ -48,7 +55,7 @@ def build_argparser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = build_argparser().parse_args()
-    texts = iter_texts(args.dataset_name, args.dataset_split, args.text_column, args.text_file)
+    texts = iter_texts(args.dataset_name, args.dataset_config, args.dataset_split, args.text_column, args.text_file)
     if not texts:
         raise SystemExit("No text found. Pass --dataset-name or at least one --text-file.")
 
@@ -88,6 +95,7 @@ def main() -> None:
                 "vocab_size": args.vocab_size,
                 "min_frequency": args.min_frequency,
                 "dataset_name": args.dataset_name,
+                "dataset_config": args.dataset_config,
                 "dataset_split": args.dataset_split,
                 "text_column": args.text_column,
                 "text_files": args.text_file,

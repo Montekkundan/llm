@@ -11,9 +11,15 @@ from datasets import Dataset, load_dataset
 from picollm.common import generate_reply, load_generation_bundle
 
 
-def load_texts(dataset_name: str | None, dataset_split: str, text_column: str, text_files: list[str]) -> Dataset:
+def load_texts(
+    dataset_name: str | None,
+    dataset_config: str | None,
+    dataset_split: str,
+    text_column: str,
+    text_files: list[str],
+) -> Dataset:
     if dataset_name:
-        return load_dataset(dataset_name, split=dataset_split).select_columns([text_column])
+        return load_dataset(dataset_name, dataset_config, split=dataset_split).select_columns([text_column])
     items = []
     for path in text_files:
         items.extend({text_column: line.strip()} for line in Path(path).read_text(encoding="utf-8").splitlines() if line.strip())
@@ -24,6 +30,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Evaluate a picoLLM pretraining checkpoint.")
     parser.add_argument("--model", required=True)
     parser.add_argument("--dataset-name", default=None)
+    parser.add_argument("--dataset-config", default=None)
     parser.add_argument("--dataset-split", default="validation")
     parser.add_argument("--text-column", default="text")
     parser.add_argument("--text-file", action="append", default=[])
@@ -31,7 +38,7 @@ def main() -> None:
     parser.add_argument("--output", default=None)
     args = parser.parse_args()
 
-    dataset = load_texts(args.dataset_name, args.dataset_split, args.text_column, args.text_file)
+    dataset = load_texts(args.dataset_name, args.dataset_config, args.dataset_split, args.text_column, args.text_file)
     if len(dataset) == 0:
         raise SystemExit("No eval texts found.")
 

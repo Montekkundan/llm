@@ -28,18 +28,18 @@ For the lecture, this path is best for:
 
 ```bash
 uv run python -m picollm.pretrain_cloud.train_tokenizer \
-  --text-file data/pretrain/sample_corpus.txt \
-  --vocab-size 16000 \
+  --dataset-name wikitext \
+  --dataset-config wikitext-2-raw-v1 \
+  --dataset-split train \
+  --text-column text \
   --output-dir artifacts/picollm/tokenizer
 ```
 
-You can swap `--text-file` for a Hugging Face dataset:
+You can also train from your own local text files:
 
 ```bash
 uv run python -m picollm.pretrain_cloud.train_tokenizer \
-  --dataset-name wikitext \
-  --dataset-split train \
-  --text-column text \
+  --text-file your_corpus.txt \
   --output-dir artifacts/picollm/tokenizer
 ```
 
@@ -48,7 +48,10 @@ uv run python -m picollm.pretrain_cloud.train_tokenizer \
 ```bash
 uv run python -m picollm.pretrain_cloud.train \
   --tokenizer-path artifacts/picollm/tokenizer \
-  --text-file data/pretrain/sample_corpus.txt \
+  --dataset-name wikitext \
+  --dataset-config wikitext-2-raw-v1 \
+  --dataset-split train \
+  --text-column text \
   --output-dir artifacts/picollm/pretrain-run \
   --layers 8 \
   --heads 8 \
@@ -80,18 +83,20 @@ uv run python -m picollm.pretrain_cloud.vast_create_instance \
   --label picollm-train
 ```
 
+The create command returns a JSON payload. Use `new_contract` from that payload as the instance id for the next steps.
+
 Show instance:
 
 ```bash
 uv run python -m picollm.pretrain_cloud.vast_show_instance \
-  --instance-id 12345678
+  --instance-id 34276100
 ```
 
 Print SSH / copy commands:
 
 ```bash
 uv run python -m picollm.pretrain_cloud.vast_access \
-  --instance-id 12345678
+  --instance-id 34276100
 ```
 
 ## 3. Evaluate the checkpoint
@@ -99,7 +104,10 @@ uv run python -m picollm.pretrain_cloud.vast_access \
 ```bash
 uv run python -m picollm.pretrain_cloud.eval \
   --model artifacts/picollm/pretrain-run \
-  --text-file data/pretrain/sample_eval.txt \
+  --dataset-name wikitext \
+  --dataset-config wikitext-2-raw-v1 \
+  --dataset-split validation \
+  --text-column text \
   --output artifacts/picollm/pretrain_eval.json
 ```
 
@@ -126,6 +134,14 @@ Official Hub docs:
 - [Token setup and auth](https://huggingface.co/docs/hub/main/en/security-tokens)
 
 ## 5. Pull weights back to a laptop
+
+The normal flow is:
+
+1. create the Vast instance
+2. use `new_contract` as the instance id
+3. SSH into the machine
+4. run tokenizer training and pretraining there
+5. copy `artifacts/picollm/pretrain-run` back to your laptop with the `scp` or `rsync` command printed by `vast_access`
 
 Mac, Linux, and Windows can all use the same checkpoint folder with `transformers`.
 

@@ -14,9 +14,15 @@ from transformers import (
 )
 
 
-def build_examples(dataset_name: str | None, dataset_split: str, text_column: str, text_files: list[str]) -> Dataset:
+def build_examples(
+    dataset_name: str | None,
+    dataset_config: str | None,
+    dataset_split: str,
+    text_column: str,
+    text_files: list[str],
+) -> Dataset:
     if dataset_name:
-        dataset = load_dataset(dataset_name, split=dataset_split)
+        dataset = load_dataset(dataset_name, dataset_config, split=dataset_split)
         return dataset.select_columns([text_column])
     rows = []
     for file_path in text_files:
@@ -32,6 +38,7 @@ def main() -> None:
     parser.add_argument("--tokenizer-path", required=True)
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--dataset-name", default=None)
+    parser.add_argument("--dataset-config", default=None)
     parser.add_argument("--dataset-split", default="train")
     parser.add_argument("--text-column", default="text")
     parser.add_argument("--text-file", action="append", default=[])
@@ -54,7 +61,7 @@ def main() -> None:
     if tokenizer.pad_token is None and tokenizer.eos_token is not None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    dataset = build_examples(args.dataset_name, args.dataset_split, args.text_column, args.text_file)
+    dataset = build_examples(args.dataset_name, args.dataset_config, args.dataset_split, args.text_column, args.text_file)
 
     def tokenize(batch: dict[str, list[str]]) -> dict[str, list[list[int]]]:
         return tokenizer(batch[args.text_column], truncation=True, max_length=args.block_size)
