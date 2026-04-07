@@ -4,7 +4,6 @@ import argparse
 import json
 from pathlib import Path
 
-from datasets import load_dataset
 from tokenizers import Tokenizer
 from tokenizers.decoders import ByteLevel as ByteLevelDecoder
 from tokenizers.models import BPE
@@ -13,7 +12,7 @@ from tokenizers.processors import TemplateProcessing
 from tokenizers.trainers import BpeTrainer
 from transformers import PreTrainedTokenizerFast
 
-from .text_format import normalize_text
+from .data import iter_texts
 
 
 SPECIAL_TOKENS = [
@@ -25,27 +24,6 @@ SPECIAL_TOKENS = [
     "<|assistant|>",
 ]
 
-def iter_texts(
-    dataset_name: str | None,
-    dataset_config: str | None,
-    dataset_split: str,
-    text_column: str,
-    text_files: list[str],
-    alternating_chat_roles: bool,
-) -> list[str]:
-    if dataset_name:
-        dataset = load_dataset(dataset_name, dataset_config, split=dataset_split)
-        texts = []
-        for item in dataset:
-            text = normalize_text(item[text_column], alternating_chat_roles)
-            if text:
-                texts.append(text)
-        return texts
-    texts: list[str] = []
-    for path in text_files:
-        texts.extend(line.strip() for line in Path(path).read_text(encoding="utf-8").splitlines() if line.strip())
-    return texts
-
 
 def build_argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Train a BPE tokenizer for picoLLM cloud pretraining.")
@@ -55,6 +33,8 @@ def build_argparser() -> argparse.ArgumentParser:
     parser.add_argument("--text-column", default="text")
     parser.add_argument("--text-file", action="append", default=[])
     parser.add_argument("--alternating-chat-roles", action="store_true")
+    parser.add_argument("--streaming", action="store_true")
+    parser.add_argument("--max-texts", type=int, default=None)
     parser.add_argument("--vocab-size", type=int, default=16000)
     parser.add_argument("--min-frequency", type=int, default=2)
     parser.add_argument("--output-dir", required=True)
@@ -70,9 +50,19 @@ def main() -> None:
         args.text_column,
         args.text_file,
         args.alternating_chat_roles,
+        streaming=args.streaming,
+        max_texts=args.max_texts,
     )
-    if not texts:
-        raise SystemExit("No text found. Pass --dataset-name or at least one --text-file.")
+    num_texts = None
+    if not args.dataset_name:
+        num_texts = sum(
+            1
+            for path in args.text_file
+            for line in Path(path).read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        )
+        if args.max_texts is not None:
+            num_texts = min(num_texts, args.max_texts)
 
     tokenizer = Tokenizer(BPE(unk_token="<|pad|>"))
     tokenizer.pre_tokenizer = ByteLevel(add_prefix_space=False)
@@ -83,7 +73,7 @@ def main() -> None:
         special_tokens=SPECIAL_TOKENS,
         initial_alphabet=ByteLevel.alphabet(),
     )
-    tokenizer.train_from_iterator(texts, trainer=trainer)
+    tokenizer.train_from_iterator(texts, trainer=trainer, length=args.max_texts)
     tokenizer.post_processor = TemplateProcessing(
         single="<|bos|> $A <|eos|>",
         pair="<|bos|> $A <|eos|> $B:1 <|eos|>:1",
@@ -106,7 +96,7 @@ def main() -> None:
     (output_dir / "training_summary.json").write_text(
         json.dumps(
             {
-                "num_texts": len(texts),
+                "num_texts": num_texts,
                 "vocab_size": args.vocab_size,
                 "min_frequency": args.min_frequency,
                 "dataset_name": args.dataset_name,
@@ -115,6 +105,8 @@ def main() -> None:
                 "text_column": args.text_column,
                 "text_files": args.text_file,
                 "alternating_chat_roles": args.alternating_chat_roles,
+                "streaming": args.streaming,
+                "max_texts": args.max_texts,
             },
             indent=2,
         ),

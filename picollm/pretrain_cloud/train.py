@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 
-from datasets import Dataset, load_dataset
 from transformers import (
     AutoTokenizer,
     DataCollatorForLanguageModeling,
@@ -13,32 +11,7 @@ from transformers import (
     TrainingArguments,
 )
 
-from .text_format import normalize_text
-
-
-def build_examples(
-    dataset_name: str | None,
-    dataset_config: str | None,
-    dataset_split: str,
-    text_column: str,
-    text_files: list[str],
-    alternating_chat_roles: bool,
-) -> Dataset:
-    if dataset_name:
-        dataset = load_dataset(dataset_name, dataset_config, split=dataset_split)
-        rows = []
-        for item in dataset:
-            text = normalize_text(item[text_column], alternating_chat_roles)
-            if text:
-                rows.append({text_column: text})
-        return Dataset.from_list(rows)
-    rows = []
-    for file_path in text_files:
-        for line in Path(file_path).read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if line:
-                rows.append({text_column: line})
-    return Dataset.from_list(rows)
+from .data import load_text_dataset
 
 
 def main() -> None:
@@ -51,6 +24,8 @@ def main() -> None:
     parser.add_argument("--text-column", default="text")
     parser.add_argument("--text-file", action="append", default=[])
     parser.add_argument("--alternating-chat-roles", action="store_true")
+    parser.add_argument("--streaming", action="store_true")
+    parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--block-size", type=int, default=512)
     parser.add_argument("--vocab-size", type=int, default=None)
     parser.add_argument("--layers", type=int, default=8)
@@ -70,19 +45,38 @@ def main() -> None:
     if tokenizer.pad_token is None and tokenizer.eos_token is not None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    dataset = build_examples(
-        args.dataset_name,
-        args.dataset_config,
-        args.dataset_split,
-        args.text_column,
-        args.text_file,
-        args.alternating_chat_roles,
+    dataset = load_text_dataset(
+        dataset_name=args.dataset_name,
+        dataset_config=args.dataset_config,
+        dataset_split=args.dataset_split,
+        text_column=args.text_column,
+        text_files=args.text_file,
+        alternating_chat_roles=args.alternating_chat_roles,
+        streaming=args.streaming,
     )
+    if args.dataset_name:
+        shuffle_kwargs = {"seed": args.seed}
+        if args.streaming:
+            shuffle_kwargs["buffer_size"] = 10_000
+        dataset = dataset.shuffle(**shuffle_kwargs)
 
     def tokenize(batch: dict[str, list[str]]) -> dict[str, list[list[int]]]:
-        return tokenizer(batch[args.text_column], truncation=True, max_length=args.block_size)
+        return tokenizer(batch["text"], truncation=False)
 
-    tokenized = dataset.map(tokenize, batched=True, remove_columns=[args.text_column])
+    tokenized = dataset.map(tokenize, batched=True, remove_columns=["text"])
+
+    def group_texts(batch: dict[str, list[list[int]]]) -> dict[str, list[list[int]]]:
+        concatenated = {key: sum(batch[key], []) for key in batch.keys()}
+        total_length = len(concatenated["input_ids"])
+        total_length = (total_length // args.block_size) * args.block_size
+        if total_length == 0:
+            return {key: [] for key in batch.keys()}
+        return {
+            key: [values[index : index + args.block_size] for index in range(0, total_length, args.block_size)]
+            for key, values in concatenated.items()
+        }
+
+    tokenized = tokenized.map(group_texts, batched=True)
     vocab_size = args.vocab_size or tokenizer.vocab_size
     config = GPT2Config(
         vocab_size=vocab_size,
@@ -106,6 +100,7 @@ def main() -> None:
         logging_steps=args.logging_steps,
         save_steps=args.save_steps,
         bf16=args.bf16,
+        seed=args.seed,
         report_to=[],
         remove_unused_columns=False,
         ddp_find_unused_parameters=False,
