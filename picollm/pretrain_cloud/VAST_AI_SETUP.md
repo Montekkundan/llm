@@ -115,16 +115,12 @@ Host ssh1.vast.ai
 
 ## 1. Search offers
 
-```bash
-uv run python -m picollm.pretrain_cloud.vast_search_offers \
-  --gpu-name "RTX 4090" \
-  --num-gpus 1 \
-  --gpu-ram-gb 24 \
-  --reliability 0.995 \
-  --limit 10
-```
+For a strong from-scratch run, start by looking for either:
 
-If you want to experiment with multi-GPU, increase `--num-gpus`:
+- `2x RTX 4090` if you want the best budget/performance path
+- `1x A100 80GB` if you want the simplest serious single-GPU path
+
+Two RTX 4090s:
 
 ```bash
 uv run python -m picollm.pretrain_cloud.vast_search_offers \
@@ -135,7 +131,18 @@ uv run python -m picollm.pretrain_cloud.vast_search_offers \
   --limit 10
 ```
 
-The training script itself can run under `torchrun`, so multi-GPU is available when you want to try it.
+If you want more room per GPU, search for an A100 80GB listing. Use the exact GPU label shown in the Vast UI. A common label is `A100 SXM4`:
+
+```bash
+uv run python -m picollm.pretrain_cloud.vast_search_offers \
+  --gpu-name "A100 SXM4" \
+  --num-gpus 1 \
+  --gpu-ram-gb 80 \
+  --reliability 0.995 \
+  --limit 10
+```
+
+If you want to push harder, search for `4x RTX 4090` or `2x A100 80GB`.
 
 Pick one `id` from the output.
 
@@ -202,101 +209,87 @@ cd llm
 curl -LsSf https://astral.sh/uv/install.sh | sh
 source ~/.zshrc 2>/dev/null || source ~/.bashrc 2>/dev/null || true
 uv sync
+
 uv run python -m picollm.pretrain_cloud.train_tokenizer \
-  --dataset-name HuggingFaceH4/ultrachat_200k \
-  --dataset-split train_sft \
-  --text-column messages \
-  --vocab-size 16000 \
-  --output-dir artifacts/picollm/tokenizer
-
-uv run python -m picollm.pretrain_cloud.train \
-  --tokenizer-path artifacts/picollm/tokenizer \
-  --dataset-name HuggingFaceH4/ultrachat_200k \
-  --dataset-split train_sft \
-  --text-column messages \
-  --output-dir artifacts/picollm/pretrain-run \
-  --block-size 256 \
-  --layers 8 \
-  --heads 8 \
-  --hidden-size 512 \
-  --batch-size 8 \
-  --grad-accum 8 \
-  --warmup-steps 500 \
-  --save-steps 1000 \
-  --max-steps 8000 \
-  --bf16
-```
-
-If you want a small coherent story model instead, use `TinyStories`:
-
-```bash
-uv run python -m picollm.pretrain_cloud.train_tokenizer \
-  --dataset-name roneneldan/TinyStories \
+  --dataset-name HuggingFaceFW/fineweb-edu \
+  --dataset-config sample-10BT \
   --dataset-split train \
   --text-column text \
+  --streaming \
+  --max-texts 500000 \
   --vocab-size 32000 \
   --output-dir artifacts/picollm/tokenizer
 
-uv run python -m picollm.pretrain_cloud.train \
+uv run torchrun --nproc_per_node=2 -m picollm.pretrain_cloud.train \
   --tokenizer-path artifacts/picollm/tokenizer \
-  --dataset-name roneneldan/TinyStories \
+  --dataset-name HuggingFaceFW/fineweb-edu \
+  --dataset-config sample-10BT \
   --dataset-split train \
   --text-column text \
+  --streaming \
   --output-dir artifacts/picollm/pretrain-run \
-  --block-size 256 \
-  --layers 12 \
-  --heads 12 \
-  --hidden-size 768 \
-  --batch-size 8 \
+  --block-size 1024 \
+  --layers 24 \
+  --heads 16 \
+  --hidden-size 1024 \
+  --batch-size 2 \
+  --grad-accum 16 \
+  --warmup-steps 1000 \
+  --save-steps 5000 \
+  --max-steps 50000 \
+  --bf16
+uv run torchrun --nproc_per_node=2 -m picollm.sft_full.finetune \
+  --model artifacts/picollm/pretrain-run \
+  --dataset-name HuggingFaceTB/everyday-conversations-llama3.1-2k \
+  --dataset-split train_sft \
+  --text-column messages \
+  --output-dir artifacts/picollm/chat-sft-run \
+  --batch-size 4 \
   --grad-accum 8 \
-  --warmup-steps 500 \
-  --save-steps 1000 \
-  --max-steps 12000 \
+  --learning-rate 2e-5 \
+  --warmup-steps 100 \
+  --save-steps 250 \
+  --max-steps 1500 \
+  --bf16
+```
+
+What this is doing:
+
+- stage 1 learns language from general text
+- stage 2 teaches the already-trained checkpoint to answer like a conversational chatbot
+- this is still your own model, not a pretrained Qwen checkpoint
+
+If you want broader assistant behavior after the conversational pass, run one more full-SFT pass:
+
+```bash
+uv run python -m picollm.sft_full.finetune \
+  --model artifacts/picollm/chat-sft-run \
+  --dataset-name HuggingFaceH4/ultrachat_200k \
+  --dataset-split train_sft \
+  --text-column messages \
+  --output-dir artifacts/picollm/chat-sft-ultrachat \
+  --batch-size 2 \
+  --grad-accum 16 \
+  --learning-rate 1e-5 \
+  --warmup-steps 200 \
+  --save-steps 500 \
+  --max-steps 4000 \
   --bf16
 ```
 
 If the same Vast machine is still running, you can start another run there. You do not need to create a new machine every time. Before retraining, either remove the old artifacts or use a new output directory:
 
 ```bash
-rm -rf artifacts/picollm/pretrain-run artifacts/picollm/tokenizer
+rm -rf artifacts/picollm/pretrain-run artifacts/picollm/chat-sft-run artifacts/picollm/tokenizer
 ```
 
-If your Vast instance has multiple GPUs, launch the same training script with `torchrun` instead of plain `python`:
+If you only have one large GPU, the same commands still work. Lower `--batch-size` or increase `--grad-accum` if memory is tight.
 
-```bash
-uv run torchrun --nproc_per_node=2 -m picollm.pretrain_cloud.train \
-  --tokenizer-path artifacts/picollm/tokenizer \
-  --dataset-name HuggingFaceH4/ultrachat_200k \
-  --dataset-split train_sft \
-  --text-column messages \
-  --output-dir artifacts/picollm/pretrain-run \
-  --block-size 256 \
-  --layers 8 \
-  --heads 8 \
-  --hidden-size 512 \
-  --batch-size 8 \
-  --grad-accum 8 \
-  --warmup-steps 500 \
-  --save-steps 1000 \
-  --max-steps 8000 \
-  --bf16
-```
-
-What changes:
-
-- `--batch-size` stays per GPU
-- total effective batch increases with the number of GPUs
-- throughput usually improves
-- the model and objective stay the same
-
-Rough effective global batch:
-
-- `per_device_batch_size × num_gpus × grad_accum`
-
-The expected checkpoint location after training is usually:
+The expected checkpoint locations after training are usually:
 
 ```bash
 /root/llm/artifacts/picollm/pretrain-run
+/root/llm/artifacts/picollm/chat-sft-run
 ```
 
 If you cloned the repo into a different directory, use that path instead.
@@ -307,55 +300,50 @@ You may also see a log line like:
 
 That is normal. It usually means the checkpoint is being saved into multiple files rather than one large file. The training job is not doing anything strange there; it is just writing the checkpoint in shard form on disk.
 
-Before leaving SSH, confirm the checkpoint exists:
+Before leaving SSH, confirm the final checkpoint exists:
 
 ```bash
-ls -lah /root/llm/artifacts/picollm/pretrain-run
+ls -lah /root/llm/artifacts/picollm/chat-sft-run
 ```
 
 If the folder is there and contains model files, you can exit the SSH session.
 
 ## Dataset swaps
 
-You can change the dataset, but do not change only `--dataset-name`. You also need to match the dataset schema.
+You can change datasets, but the stage matters.
 
 Use this rule:
 
-- plain text dataset: use the text column, usually `--text-column text`
-- chat dataset with role/content messages: use the messages column, usually `--text-column messages`
+- base pretraining: plain text, usually `--text-column text`
+- chat post-training: standard chat messages, usually `--text-column messages`
 - list-of-turn dialogue dataset: use the dialogue column and add `--alternating-chat-roles`
 
 Examples:
 
 ```bash
-# standard chat messages
---dataset-name HuggingFaceH4/ultrachat_200k
+# base pretraining on general text
+--dataset-name HuggingFaceFW/fineweb-edu
+--dataset-config sample-10BT
+--dataset-split train
+--text-column text
+--streaming
+```
+
+```bash
+# default conversational SFT
+--dataset-name HuggingFaceTB/everyday-conversations-llama3.1-2k
 --dataset-split train_sft
 --text-column messages
 ```
 
 ```bash
-# plain text stories
---dataset-name roneneldan/TinyStories
---dataset-split train
---text-column text
+# broader assistant SFT
+--dataset-name HuggingFaceH4/ultrachat_200k
+--dataset-split train_sft
+--text-column messages
 ```
 
-```bash
-# alternating dialogue turns
---dataset-name some-dialogue-dataset
---dataset-split train
---text-column dialog
---alternating-chat-roles
-```
-
-So yes, you can swap datasets and start training, but the split and text column must match the dataset format.
-
-Why these datasets:
-
-- `HuggingFaceH4/ultrachat_200k` is the default if you want a small conversational model with an industry-standard `messages` format
-- `roneneldan/TinyStories` is better if you want a small coherent story model
-- both are public and work out of the box with these scripts
+This keeps the from-scratch path close to how modern small chat models are usually built: general-text base pretraining first, then chat post-training.
 
 ## 6. Bring the checkpoint back
 
@@ -366,8 +354,8 @@ From your laptop, ask the helper to print copy commands:
 ```bash
 uv run python -m picollm.pretrain_cloud.vast_access \
   --new-contract 34276100 \
-  --local-dir artifacts/picollm/pretrain-run \
-  --remote-dir /root/llm/artifacts/picollm/pretrain-run
+  --local-dir artifacts/picollm/chat-sft-run \
+  --remote-dir /root/llm/artifacts/picollm/chat-sft-run
 ```
 
 Then run either the printed `scp` command or the printed `rsync` command. Running `vast_access` alone does not transfer any files.
@@ -376,7 +364,7 @@ After the checkpoint folder is back on your machine, run it locally:
 
 ```bash
 uv run python -m picollm.serve.chat_cli \
-  --model artifacts/picollm/pretrain-run \
+  --model artifacts/picollm/chat-sft-run \
   --device auto
 ```
 
@@ -384,11 +372,11 @@ Or in the web UI:
 
 ```bash
 uv run python -m picollm.serve.chat_web \
-  --model artifacts/picollm/pretrain-run \
+  --model artifacts/picollm/chat-sft-run \
   --device auto
 ```
 
-For a more usable tiny model, prefer the `HuggingFaceH4/ultrachat_200k` or `TinyStories` commands above instead of the older `wikitext` path.
+If you ran the broader assistant pass, replace `chat-sft-run` with `chat-sft-ultrachat`.
 
 ## 7. Clean up after the run
 
@@ -404,12 +392,14 @@ Add `--yes` to skip the confirmation prompt.
 If you also want to clear the copied local files:
 
 ```bash
-uv run python -m picollm.pretrain_cloud.cleanup_local_artifacts
+uv run python -m picollm.pretrain_cloud.cleanup_local_artifacts \
+  --checkpoint-dir artifacts/picollm/chat-sft-run
 ```
 
 Or remove both the local checkpoint and tokenizer:
 
 ```bash
 uv run python -m picollm.pretrain_cloud.cleanup_local_artifacts \
+  --checkpoint-dir artifacts/picollm/chat-sft-run \
   --include-tokenizer
 ```
