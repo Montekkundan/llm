@@ -235,6 +235,15 @@ source ~/.zshrc 2>/dev/null || source ~/.bashrc 2>/dev/null || true
 uv sync
 ```
 
+If you want hosted telemetry or Hub upload, do the auth step here before you start the run:
+
+```bash
+wandb login
+hf auth login
+```
+
+If you already passed `--hf-token` or `--wandb-api-key` when creating the instance, you can skip those login commands.
+
 If you want the one-command path instead of running each stage manually, start with:
 
 ```bash

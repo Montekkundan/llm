@@ -427,26 +427,26 @@ Examples:
 
 ## 6. Vast.ai helper scripts
 
-Default recommendation for this course:
+Serious capstone recommendation for this course:
 
-- `2x RTX 4090`
+- `8x H100`
 
-That is the default because it is usually the best budget/performance path for a serious small-model run.
-
-Use this search command:
+Use this search command first:
 
 ```bash
 uv run python -m picollm.pretrain_cloud.vast_search_offers \
-  --gpu-name "RTX 4090" \
-  --num-gpus 2 \
-  --gpu-ram-gb 24 \
+  --gpu-name "H100 SXM5" \
+  --num-gpus 8 \
+  --gpu-ram-gb 80 \
   --reliability 0.995 \
   --limit 10
 ```
 
-That is the one students should use by default.
+If the exact H100 label differs on Vast, use the closest H100 label shown in the Vast.ai console.
 
-If you want, you can choose a different GPU or a single larger GPU in the Vast.ai console. The simplest alternative is `1x A100 80GB`.
+If you want a slower but still strong alternative, use `8x A100`.
+
+If you want the cheaper teaching-scale run instead, use `2x RTX 4090`.
 
 If you change hardware, you usually do not need to edit `speedrun.sh`. Start with the closest preset instead:
 
