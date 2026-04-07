@@ -167,19 +167,21 @@ Search offers:
 ```bash
 uv run python -m picollm.pretrain_cloud.vast_search_offers \
   --gpu-name "RTX 4090" \
-  --num-gpus 1 \
+  --num-gpus 2 \
   --gpu-ram-gb 24 \
   --reliability 0.995 \
   --limit 10
 ```
 
-If you want to experiment with multi-GPU later, just increase `--num-gpus`, for example:
+That is the default recommendation now.
+
+If you want a different setup later, you can change the GPU choice in the Vast.ai console and then adjust the preset or GPU count as needed. For example:
 
 ```bash
 uv run python -m picollm.pretrain_cloud.vast_search_offers \
-  --gpu-name "RTX 4090" \
-  --num-gpus 2 \
-  --gpu-ram-gb 24 \
+  --gpu-name "A100 SXM4" \
+  --num-gpus 1 \
+  --gpu-ram-gb 80 \
   --reliability 0.995 \
   --limit 10
 ```
