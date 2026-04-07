@@ -8,6 +8,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from trl import SFTConfig, SFTTrainer
 
 from picollm.common.device import default_dtype_for_device, resolve_device
+from picollm.common.telemetry import ensure_reporter_ready, trainer_report_to
 
 
 def main() -> None:
@@ -23,7 +24,10 @@ def main() -> None:
     parser.add_argument("--learning-rate", type=float, default=2e-4)
     parser.add_argument("--max-steps", type=int, default=200)
     parser.add_argument("--logging-steps", type=int, default=10)
+    parser.add_argument("--report-to", choices=["none", "tensorboard", "wandb"], default="none")
+    parser.add_argument("--run-name", default=None)
     args = parser.parse_args()
+    ensure_reporter_ready(args.report_to)
 
     device = resolve_device(args.device)
     tokenizer = AutoTokenizer.from_pretrained(args.model)
@@ -64,7 +68,8 @@ def main() -> None:
         max_steps=args.max_steps,
         logging_steps=args.logging_steps,
         dataloader_pin_memory=device == "cuda",
-        report_to=[],
+        report_to=trainer_report_to(args.report_to),
+        run_name=args.run_name,
     )
     trainer = SFTTrainer(
         model=model,

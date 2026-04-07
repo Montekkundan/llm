@@ -6,6 +6,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from trl import SFTConfig, SFTTrainer
 
 from picollm.common.device import default_dtype_for_device, resolve_device
+from picollm.common.telemetry import ensure_reporter_ready, trainer_report_to
 from picollm.pretrain_cloud.data import load_text_dataset
 
 
@@ -29,7 +30,10 @@ def main() -> None:
     parser.add_argument("--logging-steps", type=int, default=10)
     parser.add_argument("--save-steps", type=int, default=500)
     parser.add_argument("--bf16", action="store_true")
+    parser.add_argument("--report-to", choices=["none", "tensorboard", "wandb"], default="none")
+    parser.add_argument("--run-name", default=None)
     args = parser.parse_args()
+    ensure_reporter_ready(args.report_to)
 
     device = resolve_device(args.device)
     tokenizer = AutoTokenizer.from_pretrained(args.model)
@@ -61,7 +65,8 @@ def main() -> None:
         logging_steps=args.logging_steps,
         save_steps=args.save_steps,
         bf16=args.bf16,
-        report_to=[],
+        report_to=trainer_report_to(args.report_to),
+        run_name=args.run_name,
         remove_unused_columns=False,
         ddp_find_unused_parameters=False,
     )

@@ -13,6 +13,9 @@ PRETRAIN_GRAD_ACCUM="${PICO_PRETRAIN_GRAD_ACCUM:-}"
 SFT_BATCH_SIZE="${PICO_SFT_BATCH_SIZE:-}"
 SFT_GRAD_ACCUM="${PICO_SFT_GRAD_ACCUM:-}"
 HF_REPO_ID="${PICO_HF_REPO_ID:-}"
+REPORT_TO="${PICO_REPORT_TO:-none}"
+RUN_NAME="${PICO_RUN_NAME:-}"
+WANDB_PROJECT="${PICO_WANDB_PROJECT:-}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -36,13 +39,25 @@ while [[ $# -gt 0 ]]; do
       HF_REPO_ID="$2"
       shift 2
       ;;
+    --report-to)
+      REPORT_TO="$2"
+      shift 2
+      ;;
+    --run-name)
+      RUN_NAME="$2"
+      shift 2
+      ;;
+    --wandb-project)
+      WANDB_PROJECT="$2"
+      shift 2
+      ;;
     --device)
       SERVE_DEVICE="$2"
       shift 2
       ;;
     *)
       echo "Unknown argument: $1" >&2
-      echo "Usage: bash picollm/pretrain_cloud/speedrun.sh [--cli|--web] [--preset 2x4090|a100-80gb] [--nproc-per-node N] [--hf-repo-id REPO] [--device DEVICE]" >&2
+      echo "Usage: bash picollm/pretrain_cloud/speedrun.sh [--cli|--web] [--preset 2x4090|a100-80gb] [--nproc-per-node N] [--hf-repo-id REPO] [--report-to none|tensorboard|wandb] [--run-name NAME] [--wandb-project NAME] [--device DEVICE]" >&2
       exit 1
       ;;
   esac
@@ -63,6 +78,24 @@ fi
 
 uv sync
 
+if [[ "$REPORT_TO" == "wandb" ]]; then
+  if [[ -n "${WANDB_API_KEY:-}" ]]; then
+    echo "Using WANDB_API_KEY from the environment for Weights & Biases logging."
+  elif uv run python - <<'PY' >/dev/null 2>&1
+from picollm.common.telemetry import has_wandb_auth
+raise SystemExit(0 if has_wandb_auth() else 1)
+PY
+  then
+    echo "Using existing Weights & Biases login for telemetry."
+  else
+    echo "You passed --report-to wandb, but no Weights & Biases auth was found." >&2
+    echo "Fix one of these before rerunning:" >&2
+    echo "  1. export WANDB_API_KEY=\"...\"" >&2
+    echo "  2. run: wandb login" >&2
+    exit 1
+  fi
+fi
+
 if [[ -n "$HF_REPO_ID" ]]; then
   if [[ -n "${HF_TOKEN:-}" ]]; then
     echo "Using HF_TOKEN from the environment for Hub upload."
@@ -75,6 +108,14 @@ if [[ -n "$HF_REPO_ID" ]]; then
     echo "  2. run: hf auth login" >&2
     exit 1
   fi
+fi
+
+if [[ "$REPORT_TO" == "wandb" && -n "$WANDB_PROJECT" ]]; then
+  export WANDB_PROJECT="$WANDB_PROJECT"
+fi
+
+if [[ -z "$RUN_NAME" ]]; then
+  RUN_NAME="picollm-${PRESET}-${MODE}"
 fi
 
 TOKENIZER_DIR="artifacts/picollm/tokenizer"
@@ -140,7 +181,9 @@ run_launcher picollm.pretrain_cloud.train \
   --warmup-steps 1000 \
   --save-steps 5000 \
   --max-steps 50000 \
-  --bf16
+  --bf16 \
+  --report-to "$REPORT_TO" \
+  --run-name "${RUN_NAME}-pretrain"
 
 run_launcher picollm.sft_full.finetune \
   --model "$PRETRAIN_DIR" \
@@ -154,7 +197,9 @@ run_launcher picollm.sft_full.finetune \
   --warmup-steps 100 \
   --save-steps 250 \
   --max-steps 1500 \
-  --bf16
+  --bf16 \
+  --report-to "$REPORT_TO" \
+  --run-name "${RUN_NAME}-sft"
 
 if [[ -n "$HF_REPO_ID" ]]; then
   uv run python -m picollm.pretrain_cloud.push_to_hub \

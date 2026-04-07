@@ -12,6 +12,8 @@ from transformers import (
     TrainingArguments,
 )
 
+from picollm.common.telemetry import ensure_reporter_ready, trainer_report_to
+
 from .data import load_text_dataset
 
 
@@ -48,7 +50,10 @@ def main() -> None:
     parser.add_argument("--logging-steps", type=int, default=10)
     parser.add_argument("--save-steps", type=int, default=250)
     parser.add_argument("--bf16", action="store_true")
+    parser.add_argument("--report-to", choices=["none", "tensorboard", "wandb"], default="none")
+    parser.add_argument("--run-name", default=None)
     args = parser.parse_args()
+    ensure_reporter_ready(args.report_to)
 
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_path)
     if tokenizer.pad_token is None and tokenizer.eos_token is not None:
@@ -119,7 +124,8 @@ def main() -> None:
         save_steps=args.save_steps,
         bf16=args.bf16,
         seed=args.seed,
-        report_to=[],
+        report_to=trainer_report_to(args.report_to),
+        run_name=args.run_name,
         remove_unused_columns=False,
         ddp_find_unused_parameters=False,
     )
