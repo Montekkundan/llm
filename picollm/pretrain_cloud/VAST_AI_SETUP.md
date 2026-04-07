@@ -229,6 +229,8 @@ uv run python -m picollm.pretrain_cloud.train \
   --bf16
 ```
 
+In this repo, `daily_dialog` is a friendly alias. The loader resolves it to a Hub-hosted mirror that works with current `datasets` releases, so you can keep using the shorter name in commands.
+
 If you want a small coherent story model instead, use `TinyStories`:
 
 ```bash

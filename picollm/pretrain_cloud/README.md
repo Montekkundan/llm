@@ -36,6 +36,8 @@ uv run python -m picollm.pretrain_cloud.train_tokenizer \
   --output-dir artifacts/picollm/tokenizer
 ```
 
+In this repo, `daily_dialog` is a friendly alias. Under the hood the loader resolves it to a Hub-hosted mirror that works with current `datasets` releases, so you can keep using the shorter name in commands.
+
 You can also train from your own local text files:
 
 ```bash

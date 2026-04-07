@@ -13,6 +13,8 @@ from tokenizers.processors import TemplateProcessing
 from tokenizers.trainers import BpeTrainer
 from transformers import PreTrainedTokenizerFast
 
+from .dataset_aliases import resolve_dataset_name
+
 
 SPECIAL_TOKENS = [
     "<|pad|>",
@@ -48,7 +50,7 @@ def iter_texts(
     alternating_chat_roles: bool,
 ) -> list[str]:
     if dataset_name:
-        dataset = load_dataset(dataset_name, dataset_config, split=dataset_split)
+        dataset = load_dataset(resolve_dataset_name(dataset_name), dataset_config, split=dataset_split)
         texts = []
         for item in dataset:
             text = normalize_text(item[text_column], alternating_chat_roles)

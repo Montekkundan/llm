@@ -13,6 +13,8 @@ from transformers import (
     TrainingArguments,
 )
 
+from .dataset_aliases import resolve_dataset_name
+
 
 def normalize_text(value: object, alternating_chat_roles: bool) -> str:
     if isinstance(value, list):
@@ -38,7 +40,7 @@ def build_examples(
     alternating_chat_roles: bool,
 ) -> Dataset:
     if dataset_name:
-        dataset = load_dataset(dataset_name, dataset_config, split=dataset_split)
+        dataset = load_dataset(resolve_dataset_name(dataset_name), dataset_config, split=dataset_split)
         rows = []
         for item in dataset:
             text = normalize_text(item[text_column], alternating_chat_roles)
