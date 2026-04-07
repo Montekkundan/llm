@@ -9,22 +9,24 @@ Then compare:
 
 - instruction following
 - tone
-- brevity vs verbosity
-- domain alignment
+- whether the adapted model answers like a lecture assistant
+- whether it consistently uses a structured teaching format
+- whether the base model stays more general-purpose
 
 ## Core prompts
 
-- `Why is the sky blue?`
-- `Explain self-attention to a beginner in four sentences.`
-- `Write a short poem about the sky.`
+- `Explain tokenization for a first-year student.`
 - `Give me a two-step study plan for learning transformers.`
+- `What is LoRA?`
+- `Use one analogy to explain self-attention.`
 
 ## More lecture-friendly prompts
 
-- `Explain tokenization to a first-year student in simple language.`
-- `In three bullet points, explain what a decoder-only model does.`
-- `Write a short analogy for attention without using math.`
-- `Answer as a concise teaching assistant: what is LoRA?`
+- `What does quantization do?`
+- `What is the difference between a base model and an SFT model?`
+- `What is a KV cache?`
+- `Explain positional encoding.`
+- `Write a short poem about embeddings in exactly two lines.`
 
 ## Commands
 
@@ -53,3 +55,9 @@ uv run python scripts/real_chatbot_workflow/compare_base_vs_lora.py \
   --adapter artifacts/picollm/lora-run \
   --device auto
 ```
+
+What to look for:
+
+- the base model is often good, but it stays like a general-purpose assistant
+- the adapted model should start sounding like a compact lecture assistant
+- the easiest visual cue is that the adapted model often uses a repeatable structure such as `Core idea`, `Example`, and `Takeaway`

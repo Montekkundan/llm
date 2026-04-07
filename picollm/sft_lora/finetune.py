@@ -41,7 +41,7 @@ def main() -> None:
         )
         model_kwargs["device_map"] = "auto"
     else:
-        model_kwargs["torch_dtype"] = default_dtype_for_device(device)
+        model_kwargs["dtype"] = default_dtype_for_device(device)
 
     model = AutoModelForCausalLM.from_pretrained(args.model, **model_kwargs)
     if "device_map" not in model_kwargs:
@@ -63,6 +63,7 @@ def main() -> None:
         learning_rate=args.learning_rate,
         max_steps=args.max_steps,
         logging_steps=args.logging_steps,
+        dataloader_pin_memory=device == "cuda",
         report_to=[],
     )
     trainer = SFTTrainer(

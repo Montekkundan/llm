@@ -1,15 +1,21 @@
 from __future__ import annotations
 
 import argparse
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from picollm.common import generate_reply, load_generation_bundle
 
 
 DEMO_PROMPTS = [
-    "Why is the sky blue?",
-    "Explain self-attention to a beginner in four sentences.",
-    "Write a short poem about the sky.",
+    "Explain tokenization for a first-year student.",
     "Give me a two-step study plan for learning transformers.",
+    "What is LoRA?",
+    "Use one analogy to explain self-attention.",
 ]
 
 
@@ -29,6 +35,8 @@ def main() -> None:
         messages = [{"role": "user", "content": prompt}]
         print("=" * 100)
         print("PROMPT:", prompt)
+        print()
+        print("LOOK FOR: a more lecture-like structure in the adapted model, especially 'Core idea', 'Example', and 'Takeaway'.")
         print()
         print("BASE:")
         print(

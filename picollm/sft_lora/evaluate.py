@@ -8,9 +8,10 @@ from picollm.common import generate_reply, load_generation_bundle
 
 
 PROMPTS = [
-    "Why is the sky blue?",
-    "Explain self-attention in four sentences.",
-    "Write a short poem about embeddings.",
+    "Explain tokenization for a first-year student.",
+    "What is LoRA?",
+    "Use one analogy to explain self-attention.",
+    "Give me a two-step study plan for learning transformers.",
 ]
 
 
