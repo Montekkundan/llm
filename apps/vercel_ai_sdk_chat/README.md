@@ -28,6 +28,24 @@ That split is important to understand:
 
 Run the `picollm` server first so this app has an OpenAI-compatible endpoint to call:
 
+With your own from-scratch chatbot:
+
+```bash
+uv run python -m picollm.serve.chat_web \
+  --model artifacts/picollm/chat-sft-run \
+  --device auto
+```
+
+Or with a model you pushed to the Hub:
+
+```bash
+uv run python -m picollm.serve.chat_web \
+  --model your-name/picollm-chat-sft \
+  --device auto
+```
+
+You can still use a public instruct model if you want:
+
 ```bash
 uv run python -m picollm.serve.chat_web \
   --model Qwen/Qwen2.5-1.5B-Instruct \
@@ -69,10 +87,16 @@ Use these in `.env.local`:
 ```bash
 PICOLLM_BASE_URL=http://127.0.0.1:8008/v1
 PICOLLM_API_KEY=local-demo-key
-PICOLLM_MODEL=Qwen/Qwen2.5-1.5B-Instruct
+PICOLLM_MODEL=artifacts/picollm/chat-sft-run
 ```
 
 If you deploy the model elsewhere, only `PICOLLM_BASE_URL` and possibly `PICOLLM_API_KEY` need to change.
+
+If you pushed the model to the Hub and serve it from there through `picollm`, use the Hub repo id instead:
+
+```bash
+PICOLLM_MODEL=your-name/picollm-chat-sft
+```
 
 ## What changed from the original template
 
@@ -98,6 +122,14 @@ This app can be deployed on Vercel, but the model backend should remain on:
 - any host exposing an OpenAI-compatible API
 
 The frontend and backend do not need to be deployed together.
+
+That means the full project can look like this:
+
+1. train your own checkpoint from scratch
+2. full-SFT it into a chatbot
+3. serve it through `picollm`
+4. optionally push it to Hugging Face Hub
+5. connect this Vercel app to that backend through the OpenAI-compatible API
 
 ## Related course docs
 

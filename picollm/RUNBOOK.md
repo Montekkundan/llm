@@ -512,6 +512,65 @@ uv run python -m picollm.serve.chat_web \
 
 If you also ran the broader assistant pass, use `artifacts/picollm/chat-sft-ultrachat` instead.
 
+## 10. Push your own chatbot to Hugging Face Hub
+
+If you want the final project to live on the Hub too, push the chat-SFT checkpoint:
+
+```bash
+hf auth login
+
+uv run python -m picollm.pretrain_cloud.push_to_hub \
+  --folder artifacts/picollm/chat-sft-run \
+  --repo-id your-name/picollm-chat-sft
+```
+
+Then you can run the same chatbot locally from the Hub id:
+
+```bash
+uv run python -m picollm.serve.chat_cli \
+  --model your-name/picollm-chat-sft \
+  --device auto
+```
+
+## 11. Connect it to the Vercel AI SDK app
+
+Start your chatbot backend:
+
+```bash
+uv run python -m picollm.serve.chat_web \
+  --model artifacts/picollm/chat-sft-run \
+  --device auto
+```
+
+Then in [apps/vercel_ai_sdk_chat](/Users/montekkundan/Developer/ML/llm/apps/vercel_ai_sdk_chat):
+
+```bash
+npm install
+cp .env.example .env.local
+```
+
+Set:
+
+```bash
+PICOLLM_BASE_URL=http://127.0.0.1:8008/v1
+PICOLLM_API_KEY=local-demo-key
+PICOLLM_MODEL=artifacts/picollm/chat-sft-run
+```
+
+Then run:
+
+```bash
+npm run dev
+```
+
+That gives you the full final-project story:
+
+1. train your own model from scratch
+2. chat-post-train it
+3. serve it locally through an OpenAI-compatible backend
+4. optionally push it to the Hub
+5. connect it to a production-style browser app
+
 So the practical cloud loop is:
 
 1. rent the Vast instance
@@ -544,7 +603,7 @@ uv run python -m picollm.pretrain_cloud.cleanup_local_artifacts \
   --include-tokenizer
 ```
 
-## 10. Related docs
+## 12. Related docs
 
 - [README.md](/Users/montekkundan/Developer/ML/llm/picollm/README.md)
 - [HUGGING_FACE_SETUP.md](/Users/montekkundan/Developer/ML/llm/picollm/HUGGING_FACE_SETUP.md)

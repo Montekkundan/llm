@@ -89,11 +89,13 @@ Use:
 Typical flow:
 
 1. train tokenizer
-2. train checkpoint in cloud
-3. evaluate
-4. push to Hub
-5. pull checkpoint locally
-6. run local inference on `cuda`, `mps`, or `cpu`
+2. pretrain a base checkpoint in cloud
+3. full-SFT that checkpoint into a chatbot
+4. evaluate
+5. optionally push the final chatbot to the Hub
+6. pull the chatbot checkpoint locally
+7. run local inference on `cuda`, `mps`, or `cpu`
+8. connect the same backend to the Vercel AI SDK app
 
 See:
 

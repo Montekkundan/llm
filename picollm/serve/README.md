@@ -4,6 +4,7 @@ This path serves either:
 
 - a pretrained instruct model
 - a base model plus LoRA adapter
+- your own from-scratch chat checkpoint
 - a merged model checkpoint
 
 It is OS-agnostic:
@@ -29,12 +30,28 @@ uv run python -m picollm.serve.chat_cli \
   --device auto
 ```
 
+With your own from-scratch chatbot:
+
+```bash
+uv run python -m picollm.serve.chat_cli \
+  --model artifacts/picollm/chat-sft-run \
+  --device auto
+```
+
 ## Web app
 
 ```bash
 uv run python -m picollm.serve.chat_web \
   --model Qwen/Qwen2.5-1.5B-Instruct \
   --adapter artifacts/picollm/lora-run \
+  --device auto
+```
+
+With your own from-scratch chatbot:
+
+```bash
+uv run python -m picollm.serve.chat_web \
+  --model artifacts/picollm/chat-sft-run \
   --device auto
 ```
 

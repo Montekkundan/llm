@@ -26,6 +26,16 @@ Official docs:
 
 ## Push a trained checkpoint
 
+From-scratch chatbot:
+
+```bash
+uv run python -m picollm.pretrain_cloud.push_to_hub \
+  --folder artifacts/picollm/chat-sft-run \
+  --repo-id your-name/picollm-chat-sft
+```
+
+Base-only checkpoint:
+
 ```bash
 uv run python -m picollm.pretrain_cloud.push_to_hub \
   --folder artifacts/picollm/pretrain-run \
@@ -33,6 +43,16 @@ uv run python -m picollm.pretrain_cloud.push_to_hub \
 ```
 
 ## Run a pushed model locally
+
+From-scratch chatbot from the Hub:
+
+```bash
+uv run python -m picollm.serve.chat_cli \
+  --model your-name/picollm-chat-sft \
+  --device auto
+```
+
+Base-only checkpoint from the Hub:
 
 ```bash
 uv run python -m picollm.serve.chat_cli \
