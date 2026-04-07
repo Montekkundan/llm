@@ -1359,7 +1359,6 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "ipykernel" },
-    { name = "jupyterlab" },
     { name = "pytest" },
 ]
 
@@ -1391,7 +1390,6 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "ipykernel", specifier = ">=7.2.0" },
-    { name = "jupyterlab", specifier = ">=4.5.6" },
     { name = "pytest", specifier = ">=8.4.2" },
 ]
 

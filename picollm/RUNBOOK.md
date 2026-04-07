@@ -630,6 +630,29 @@ The rough effective global batch is:
 
 So with `--batch-size 2`, `--grad-accum 16`, and 2 GPUs, the effective global batch is `64` sequences per optimizer step.
 
+To turn that into a rough ETA, add sequence length and live step time:
+
+- `tokens_per_step = per_device_batch_size × num_gpus × grad_accum × block_size`
+- `eta_seconds = remaining_steps × seconds_per_step`
+
+Example from the calibrated `8xh100` capstone preset:
+
+- `per_device_batch_size = 8`
+- `num_gpus = 8`
+- `grad_accum = 16`
+- `block_size = 1024`
+
+That gives:
+
+- `tokens_per_step = 8 × 8 × 16 × 1024 = 1,048,576`
+
+If your log shows about `2.8s/it`, the pretrain ETA is:
+
+- `5000 × 2.8s = 14,000s`
+- about `3.9 hours`
+
+Then add chat SFT and final upload/serve startup on top of that. For the one-command capstone path, that usually means a full runtime around `4.5 to 5 hours` on a healthy `8x H100` box.
+
 For the one-command speedrun:
 
 - default preset: `2x4090`
