@@ -5,8 +5,13 @@ set -euo pipefail
 # https://github.com/karpathy/nanochat/blob/master/runs/speedrun.sh
 
 MODE="cli"
-NPROC_PER_NODE="${PICO_NPROC_PER_NODE:-1}"
+PRESET="${PICO_PRESET:-2x4090}"
+NPROC_PER_NODE="${PICO_NPROC_PER_NODE:-}"
 SERVE_DEVICE="${PICO_SERVE_DEVICE:-auto}"
+PRETRAIN_BATCH_SIZE="${PICO_PRETRAIN_BATCH_SIZE:-}"
+PRETRAIN_GRAD_ACCUM="${PICO_PRETRAIN_GRAD_ACCUM:-}"
+SFT_BATCH_SIZE="${PICO_SFT_BATCH_SIZE:-}"
+SFT_GRAD_ACCUM="${PICO_SFT_GRAD_ACCUM:-}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -18,6 +23,10 @@ while [[ $# -gt 0 ]]; do
       MODE="web"
       shift
       ;;
+    --preset)
+      PRESET="$2"
+      shift 2
+      ;;
     --nproc-per-node)
       NPROC_PER_NODE="$2"
       shift 2
@@ -28,7 +37,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     *)
       echo "Unknown argument: $1" >&2
-      echo "Usage: bash picollm/pretrain_cloud/speedrun.sh [--cli|--web] [--nproc-per-node N] [--device DEVICE]" >&2
+      echo "Usage: bash picollm/pretrain_cloud/speedrun.sh [--cli|--web] [--preset 2x4090|a100-80gb] [--nproc-per-node N] [--device DEVICE]" >&2
       exit 1
       ;;
   esac
@@ -52,6 +61,28 @@ uv sync
 TOKENIZER_DIR="artifacts/picollm/tokenizer"
 PRETRAIN_DIR="artifacts/picollm/pretrain-run"
 CHAT_SFT_DIR="artifacts/picollm/chat-sft-run"
+
+case "$PRESET" in
+  2x4090)
+    NPROC_PER_NODE="${NPROC_PER_NODE:-2}"
+    PRETRAIN_BATCH_SIZE="${PRETRAIN_BATCH_SIZE:-2}"
+    PRETRAIN_GRAD_ACCUM="${PRETRAIN_GRAD_ACCUM:-16}"
+    SFT_BATCH_SIZE="${SFT_BATCH_SIZE:-4}"
+    SFT_GRAD_ACCUM="${SFT_GRAD_ACCUM:-8}"
+    ;;
+  a100-80gb)
+    NPROC_PER_NODE="${NPROC_PER_NODE:-1}"
+    PRETRAIN_BATCH_SIZE="${PRETRAIN_BATCH_SIZE:-4}"
+    PRETRAIN_GRAD_ACCUM="${PRETRAIN_GRAD_ACCUM:-16}"
+    SFT_BATCH_SIZE="${SFT_BATCH_SIZE:-8}"
+    SFT_GRAD_ACCUM="${SFT_GRAD_ACCUM:-8}"
+    ;;
+  *)
+    echo "Unknown preset: $PRESET" >&2
+    echo "Supported presets: 2x4090, a100-80gb" >&2
+    exit 1
+    ;;
+esac
 
 run_launcher() {
   local module="$1"
@@ -85,8 +116,8 @@ run_launcher picollm.pretrain_cloud.train \
   --layers 24 \
   --heads 16 \
   --hidden-size 1024 \
-  --batch-size 2 \
-  --grad-accum 16 \
+  --batch-size "$PRETRAIN_BATCH_SIZE" \
+  --grad-accum "$PRETRAIN_GRAD_ACCUM" \
   --warmup-steps 1000 \
   --save-steps 5000 \
   --max-steps 50000 \
@@ -98,8 +129,8 @@ run_launcher picollm.sft_full.finetune \
   --dataset-split train_sft \
   --text-column messages \
   --output-dir "$CHAT_SFT_DIR" \
-  --batch-size 4 \
-  --grad-accum 8 \
+  --batch-size "$SFT_BATCH_SIZE" \
+  --grad-accum "$SFT_GRAD_ACCUM" \
   --learning-rate 2e-5 \
   --warmup-steps 100 \
   --save-steps 250 \
