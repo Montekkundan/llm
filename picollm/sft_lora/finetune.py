@@ -70,6 +70,7 @@ def main() -> None:
         dataloader_pin_memory=device == "cuda",
         report_to=trainer_report_to(args.report_to),
         run_name=args.run_name,
+        save_only_model=True,
     )
     trainer = SFTTrainer(
         model=model,

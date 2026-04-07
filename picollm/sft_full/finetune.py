@@ -69,6 +69,7 @@ def main() -> None:
         run_name=args.run_name,
         remove_unused_columns=False,
         ddp_find_unused_parameters=False,
+        save_only_model=True,
     )
     trainer = SFTTrainer(
         model=model,
