@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import argparse
 
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, DataCollatorForSeq2Seq, Trainer, TrainingArguments
 from trl import SFTConfig, SFTTrainer
 
 from picollm.common.device import default_dtype_for_device, resolve_device
 from picollm.common.telemetry import ensure_reporter_ready, trainer_report_to
-from picollm.pretrain_cloud.data import load_prompt_completion_dataset, load_text_dataset
+from picollm.pretrain_cloud.data import load_text_dataset, load_tokenized_chat_dataset
 
 
 def main() -> None:
@@ -40,14 +40,23 @@ def main() -> None:
     if tokenizer.pad_token is None and tokenizer.eos_token is not None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    use_prompt_completion = bool(args.dataset_name and args.text_column == "messages" and not args.text_file)
-    if use_prompt_completion:
-        dataset = load_prompt_completion_dataset(
+    use_tokenized_chat = bool(args.dataset_name and args.text_column == "messages" and not args.text_file)
+    model = AutoModelForCausalLM.from_pretrained(
+        args.model,
+        dtype=default_dtype_for_device(device),
+    )
+    if tokenizer.pad_token_id is not None:
+        model.config.pad_token_id = tokenizer.pad_token_id
+
+    if use_tokenized_chat:
+        max_length = getattr(model.config, "n_positions", None) or getattr(model.config, "max_position_embeddings", None)
+        dataset = load_tokenized_chat_dataset(
             dataset_name=args.dataset_name,
             dataset_config=args.dataset_config,
             dataset_split=args.dataset_split,
             messages_column=args.text_column,
-            eos_token=tokenizer.eos_token,
+            tokenizer=tokenizer,
+            max_length=int(max_length) if max_length is not None else None,
             streaming=args.streaming,
         )
     else:
@@ -61,39 +70,59 @@ def main() -> None:
             streaming=args.streaming,
         )
 
-    model = AutoModelForCausalLM.from_pretrained(
-        args.model,
-        dtype=default_dtype_for_device(device),
-    )
-    config_kwargs = dict(
-        output_dir=args.output_dir,
-        per_device_train_batch_size=args.batch_size,
-        gradient_accumulation_steps=args.grad_accum,
-        learning_rate=args.learning_rate,
-        warmup_steps=args.warmup_steps,
-        max_steps=args.max_steps,
-        logging_steps=args.logging_steps,
-        save_steps=args.save_steps,
-        bf16=args.bf16,
-        report_to=trainer_report_to(args.report_to),
-        run_name=args.run_name,
-        remove_unused_columns=False,
-        ddp_find_unused_parameters=False,
-        save_only_model=True,
-    )
-    if use_prompt_completion:
-        config_kwargs["completion_only_loss"] = True
-        if tokenizer.eos_token is not None:
-            config_kwargs["eos_token"] = tokenizer.eos_token
+    if use_tokenized_chat:
+        config = TrainingArguments(
+            output_dir=args.output_dir,
+            per_device_train_batch_size=args.batch_size,
+            gradient_accumulation_steps=args.grad_accum,
+            learning_rate=args.learning_rate,
+            warmup_steps=args.warmup_steps,
+            max_steps=args.max_steps,
+            logging_steps=args.logging_steps,
+            save_steps=args.save_steps,
+            bf16=args.bf16,
+            report_to=trainer_report_to(args.report_to),
+            run_name=args.run_name,
+            remove_unused_columns=False,
+            ddp_find_unused_parameters=False,
+            save_only_model=True,
+        )
+        trainer = Trainer(
+            model=model,
+            args=config,
+            train_dataset=dataset,
+            data_collator=DataCollatorForSeq2Seq(
+                tokenizer=tokenizer,
+                model=model,
+                padding=True,
+                label_pad_token_id=-100,
+                return_tensors="pt",
+            ),
+        )
     else:
-        config_kwargs["dataset_text_field"] = "text"
-    config = SFTConfig(**config_kwargs)
-    trainer = SFTTrainer(
-        model=model,
-        args=config,
-        train_dataset=dataset,
-        processing_class=tokenizer,
-    )
+        config = SFTConfig(
+            output_dir=args.output_dir,
+            dataset_text_field="text",
+            per_device_train_batch_size=args.batch_size,
+            gradient_accumulation_steps=args.grad_accum,
+            learning_rate=args.learning_rate,
+            warmup_steps=args.warmup_steps,
+            max_steps=args.max_steps,
+            logging_steps=args.logging_steps,
+            save_steps=args.save_steps,
+            bf16=args.bf16,
+            report_to=trainer_report_to(args.report_to),
+            run_name=args.run_name,
+            remove_unused_columns=False,
+            ddp_find_unused_parameters=False,
+            save_only_model=True,
+        )
+        trainer = SFTTrainer(
+            model=model,
+            args=config,
+            train_dataset=dataset,
+            processing_class=tokenizer,
+        )
     trainer.train()
     trainer.save_model(args.output_dir)
     tokenizer.save_pretrained(args.output_dir)

@@ -5,6 +5,7 @@ from itertools import islice
 from pathlib import Path
 
 from datasets import Dataset, IterableDataset, load_dataset
+from transformers import PreTrainedTokenizerBase
 
 from .text_format import normalize_text
 
@@ -98,6 +99,51 @@ def load_prompt_completion_dataset(
 
     mapped = dataset.map(_normalize, remove_columns=column_names)
     return mapped.filter(lambda item: bool(item["prompt"]) and bool(item["completion"]))
+
+
+def load_tokenized_chat_dataset(
+    dataset_name: str | None,
+    dataset_config: str | None,
+    dataset_split: str,
+    messages_column: str,
+    tokenizer: PreTrainedTokenizerBase,
+    max_length: int | None = None,
+    streaming: bool = False,
+) -> TextDataset:
+    if not dataset_name:
+        raise ValueError("A dataset_name is required for tokenized chat loading.")
+
+    dataset = load_dataset(dataset_name, dataset_config, split=dataset_split, streaming=streaming)
+    column_names = _dataset_columns(dataset)
+    eos_token = tokenizer.eos_token or ""
+
+    def _tokenize_example(example: dict[str, object]) -> dict[str, list[int]] | None:
+        row = _message_rows_to_prompt_completion(example[messages_column], eos_token)
+        if row is None:
+            return None
+
+        prompt_ids = tokenizer(row["prompt"], add_special_tokens=False)["input_ids"]
+        completion_ids = tokenizer(row["completion"], add_special_tokens=False)["input_ids"]
+        input_ids = prompt_ids + completion_ids
+        labels = ([-100] * len(prompt_ids)) + completion_ids[:]
+        attention_mask = [1] * len(input_ids)
+
+        if max_length is not None and len(input_ids) > max_length:
+            input_ids = input_ids[-max_length:]
+            labels = labels[-max_length:]
+            attention_mask = attention_mask[-max_length:]
+
+        if not any(label != -100 for label in labels):
+            return None
+
+        return {
+            "input_ids": input_ids,
+            "attention_mask": attention_mask,
+            "labels": labels,
+        }
+
+    mapped = dataset.map(_tokenize_example, remove_columns=column_names)
+    return mapped.filter(lambda item: bool(item["input_ids"]) and any(label != -100 for label in item["labels"]))
 
 
 def iter_texts(
