@@ -751,21 +751,111 @@ If you also ran the broader assistant pass, use `artifacts/picollm/chat-sft-ultr
 
 ## 10. Push your own chatbot to Hugging Face Hub
 
-If you want the final project to live on the Hub too, push the chat-SFT checkpoint:
+If you want the final project to live on the Hub too, push the chat-SFT checkpoint.
+
+You can authenticate in either way:
 
 ```bash
 hf auth login
+```
+
+or:
+
+```bash
+export HF_TOKEN="YOUR_HF_TOKEN"
+```
+
+Use the generic template when you want a clean model card and a predictable repo layout:
+
+```bash
+uv run python -m picollm.pretrain_cloud.push_to_hub \
+  --folder artifacts/picollm/chat-sft-run \
+  --repo-id your-hf-username/picollm-chat-sft \
+  --title "picoLLM Chat SFT" \
+  --summary "A small conversational GPT-style checkpoint trained in the picoLLM course workflow." \
+  --base-model your-hf-username/picollm-pretrain-run \
+  --dataset HuggingFaceFW/fineweb-edu \
+  --dataset HuggingFaceTB/everyday-conversations-llama3.1-2k \
+  --tag gpt2 \
+  --tag course \
+  --tag chat
+```
+
+If you also want the model card to link to the exact W&B run, add:
+
+```bash
+uv run python -m picollm.pretrain_cloud.push_to_hub \
+  --folder artifacts/picollm/chat-sft-run \
+  --repo-id your-hf-username/picollm-chat-sft \
+  --title "picoLLM Chat SFT" \
+  --summary "A small conversational GPT-style checkpoint trained in the picoLLM course workflow." \
+  --base-model your-hf-username/picollm-pretrain-run \
+  --dataset HuggingFaceFW/fineweb-edu \
+  --dataset HuggingFaceTB/everyday-conversations-llama3.1-2k \
+  --wandb-url https://wandb.ai/your-entity/your-project/runs/your-run-id \
+  --tag gpt2 \
+  --tag course \
+  --tag chat
+```
+
+For the course repo and your current account, the polished example is:
+
+```bash
+export HF_TOKEN="YOUR_HF_TOKEN"
 
 uv run python -m picollm.pretrain_cloud.push_to_hub \
   --folder artifacts/picollm/chat-sft-run \
-  --repo-id your-name/picollm-chat-sft
+  --repo-id montekkundan/picollm-chat-sft \
+  --title "picoLLM Chat SFT" \
+  --summary "A small conversational GPT-style checkpoint trained in the picoLLM course workflow." \
+  --base-model montekkundan/picollm-pretrain-run \
+  --dataset HuggingFaceFW/fineweb-edu \
+  --dataset HuggingFaceTB/everyday-conversations-llama3.1-2k \
+  --tag gpt2 \
+  --tag course \
+  --tag chat
 ```
 
-Then you can run the same chatbot locally from the Hub id:
+If you want to include the exact successful W&B run in the model card, use:
+
+```bash
+export HF_TOKEN="YOUR_HF_TOKEN"
+
+uv run python -m picollm.pretrain_cloud.push_to_hub \
+  --folder artifacts/picollm/chat-sft-run \
+  --repo-id montekkundan/picollm-chat-sft \
+  --title "picoLLM Chat SFT" \
+  --summary "A small conversational GPT-style checkpoint trained in the picoLLM course workflow." \
+  --base-model montekkundan/picollm-pretrain-run \
+  --dataset HuggingFaceFW/fineweb-edu \
+  --dataset HuggingFaceTB/everyday-conversations-llama3.1-2k \
+  --wandb-url https://wandb.ai/montekkundan/picollm/runs/REPLACE_WITH_THE_GOOD_RUN_ID \
+  --tag gpt2 \
+  --tag course \
+  --tag chat
+```
+
+After the upload finishes, run the same chatbot from the Hub id:
 
 ```bash
 uv run python -m picollm.serve.chat_cli \
-  --model your-name/picollm-chat-sft \
+  --model your-hf-username/picollm-chat-sft \
+  --device auto
+```
+
+For the current course model:
+
+```bash
+uv run python -m picollm.serve.chat_cli \
+  --model montekkundan/picollm-chat-sft \
+  --device auto
+```
+
+Web:
+
+```bash
+uv run python -m picollm.serve.chat_web \
+  --model montekkundan/picollm-chat-sft \
   --device auto
 ```
 
