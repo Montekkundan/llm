@@ -8,6 +8,8 @@ This folder contains small teaching-scale evaluation helpers for the `picollm` w
   - a small fixed chat-oriented prompt suite for comparing checkpoints
 - `compare_checkpoints.py`
   - runs one or more checkpoints against the same prompt suite and prints a JSON comparison
+- `chat_smoke.py`
+  - runs the fixed prompt suite against one checkpoint, prints the replies directly, and flags obvious empty or looping failures
 - `latency_benchmark.py`
   - measures simple prompt latency and tokens-per-second behavior for a chat checkpoint
 - `safety_prompt_suite.json`

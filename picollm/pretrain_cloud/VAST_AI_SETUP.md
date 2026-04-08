@@ -118,9 +118,11 @@ Host ssh1.vast.ai
 For the serious capstone path in this course:
 
 - to get a real from-scratch conversational chatbot quickly, use the serious cloud capstone path on `8x H100`
-- expect about `3 to 5 hours` for the calibrated capstone recipe
-- at roughly `$18/hour`, that is about `$54 to $90` before bandwidth and storage overhead
+- expect about `5 to 7 hours` for the better-demo recipe
+- at roughly `$17.60/hour`, that is about `$88 to $123` before bandwidth and storage overhead
 - this follows the same general idea as `nanochat`'s serious cloud speedrun path
+- the serious multi-GPU preset now uses `HuggingFaceTB/smol-smoltalk` for chat post-training, matching `nanochat` much more closely than the earlier tiny debug dataset
+- the serious preset also keeps only minimal checkpoints, prunes old checkpoint folders before SFT, resumes from surviving checkpoints, and writes smoke-test outputs, which makes the one-shot run much less likely to die silently or waste a rented box
 - if you do not want to pay for that run, use the shared Hugging Face checkpoint and still complete the rest of the workflow
 - the current capstone preset is intentionally much shorter than the older `50000`-step long run and is calibrated around a smaller token budget for this `336M` parameter model
 
@@ -128,25 +130,31 @@ Use this search command first:
 
 ```bash
 uv run python -m picollm.pretrain_cloud.vast_search_offers \
-  --gpu-name "H100 SXM5" \
+  --gpu-name "H100 SXM" \
   --num-gpus 8 \
   --gpu-ram-gb 80 \
+  --min-disk-gb 200 \
   --reliability 0.995 \
   --limit 10
 ```
 
-If the exact H100 label differs on Vast, use the closest H100 label shown in the Vast.ai console.
+The search output now includes `disk_space`, `disk_bw`, and explicit hourly price fields. For the serious capstone run, prefer offers with at least about `200 GB` of disk so the tokenizer, base checkpoints, dataset cache, and final chat checkpoint all fit comfortably.
 
-If you want a slower but still strong alternative, use `8x A100`:
+As of April 7, 2026, `H100 SXM` is the exact Vast label that returns working 8-GPU offers for this search. If that dries up later, use the closest H100 label shown in the Vast.ai console.
+
+If `H100 SXM` inventory is thin, use `8x H200` first:
 
 ```bash
 uv run python -m picollm.pretrain_cloud.vast_search_offers \
-  --gpu-name "A100 SXM4" \
+  --gpu-name "H200" \
   --num-gpus 8 \
   --gpu-ram-gb 80 \
+  --min-disk-gb 200 \
   --reliability 0.995 \
   --limit 10
 ```
+
+If you want a slower but still strong alternative after that, try `8x A100`.
 
 If you want the cheaper teaching-scale run instead, use:
 
@@ -155,6 +163,7 @@ uv run python -m picollm.pretrain_cloud.vast_search_offers \
   --gpu-name "RTX 4090" \
   --num-gpus 2 \
   --gpu-ram-gb 24 \
+  --min-disk-gb 120 \
   --reliability 0.995 \
   --limit 10
 ```
@@ -169,7 +178,7 @@ Pick one `id` from the output.
 uv run python -m picollm.pretrain_cloud.vast_create_instance \
   --offer-id 12345678 \
   --label picollm-train \
-  --disk-gb 80
+  --disk-gb 200
 ```
 
 If you want a Hugging Face token available on the box:
@@ -255,7 +264,18 @@ cd ~/llm
 bash picollm/pretrain_cloud/speedrun.sh
 ```
 
-That ends in the CLI by default and assumes the `2x4090` budget teaching preset.
+That ends in the CLI by default and now assumes the serious capstone preset: `8xh100`.
+
+For the serious `8x H100` or `8x A100` preset, `speedrun.sh` now:
+
+- keeps only minimal pretrain checkpoints
+- prunes the old `checkpoint-*` folders before chat SFT starts
+- post-trains on `HuggingFaceTB/smol-smoltalk`
+- keeps only one resumable SFT checkpoint at a time
+- resumes automatically from the latest checkpoint if the box disconnects or training is interrupted
+- writes timestamped logs to `artifacts/picollm/logs/`
+- writes eval and smoke-test outputs to `artifacts/picollm/evals/`
+- prints periodic sample generations during both pretraining and SFT
 
 If you want the serious capstone run instead, use:
 
@@ -323,8 +343,8 @@ If you rent a different Vast option:
 
 - first try the closest preset instead of editing the file
 - use `--preset 8xh100` for the serious capstone run
-- use `--preset 8xa100` if H100 is unavailable and you still want a strong multi-GPU run
-- use `--preset 2x4090` for a 2-GPU midrange box
+- use `--preset 8xa100` if H100 inventory is thin and you still want a strong multi-GPU run
+- use `--preset 2x4090` only if you intentionally want the cheaper teaching-scale run
 - use `--preset a100-80gb` for a single large-memory GPU
 
 If you still need to tune a 4-GPU or custom-hardware run without editing the file, use:
@@ -332,6 +352,9 @@ If you still need to tune a 4-GPU or custom-hardware run without editing the fil
 - `--nproc-per-node N`
 - `PICO_PRETRAIN_BATCH_SIZE`
 - `PICO_PRETRAIN_GRAD_ACCUM`
+- `PICO_PRETRAIN_SAVE_TOTAL_LIMIT`
+- `PICO_SFT_DATASET_NAME`
+- `PICO_SFT_DATASET_SPLIT`
 - `PICO_SFT_BATCH_SIZE`
 - `PICO_SFT_GRAD_ACCUM`
 
@@ -406,20 +429,22 @@ uv run torchrun --nproc_per_node=2 -m picollm.pretrain_cloud.train \
   --grad-accum 16 \
   --warmup-steps 500 \
   --save-steps 1000 \
+  --save-total-limit 1 \
   --max-steps 5000 \
   --bf16
 uv run torchrun --nproc_per_node=2 -m picollm.sft_full.finetune \
   --model artifacts/picollm/pretrain-run \
-  --dataset-name HuggingFaceTB/everyday-conversations-llama3.1-2k \
-  --dataset-split train_sft \
+  --dataset-name HuggingFaceTB/smol-smoltalk \
+  --dataset-split train \
   --text-column messages \
   --output-dir artifacts/picollm/chat-sft-run \
   --batch-size 2 \
   --grad-accum 16 \
-  --learning-rate 2e-5 \
-  --warmup-steps 10 \
-  --save-steps 50 \
-  --max-steps 150 \
+  --learning-rate 1e-5 \
+  --warmup-steps 200 \
+  --save-steps 5000 \
+  --save-total-limit 1 \
+  --max-steps 2000 \
   --bf16
 ```
 
@@ -429,7 +454,7 @@ What this is doing:
 - stage 2 teaches the already-trained checkpoint to answer like a conversational chatbot
 - this is still your own model, not a pretrained Qwen checkpoint
 
-If you want broader assistant behavior after the conversational pass, run one more full-SFT pass:
+If you want broader assistant behavior after the SmolTalk pass, run one more full-SFT pass:
 
 ```bash
 uv run python -m picollm.sft_full.finetune \
@@ -442,7 +467,8 @@ uv run python -m picollm.sft_full.finetune \
   --grad-accum 16 \
   --learning-rate 1e-5 \
   --warmup-steps 200 \
-  --save-steps 500 \
+  --save-steps 5000 \
+  --save-total-limit 1 \
   --max-steps 4000 \
   --bf16
 ```
@@ -461,6 +487,8 @@ The expected checkpoint locations after training are usually:
 /root/llm/artifacts/picollm/pretrain-run
 /root/llm/artifacts/picollm/chat-sft-run
 ```
+
+On the serious preset, `speedrun.sh` also deletes the pretrain `checkpoint-*` directories after the final pretrain model is written, so the top-level `pretrain-run` folder stays small enough for the chat stage.
 
 If you cloned the repo into a different directory, use that path instead.
 
@@ -500,7 +528,14 @@ Examples:
 ```
 
 ```bash
-# default conversational SFT
+# serious conversational SFT
+--dataset-name HuggingFaceTB/smol-smoltalk
+--dataset-split train
+--text-column messages
+```
+
+```bash
+# cheap smoke-test SFT
 --dataset-name HuggingFaceTB/everyday-conversations-llama3.1-2k
 --dataset-split train_sft
 --text-column messages

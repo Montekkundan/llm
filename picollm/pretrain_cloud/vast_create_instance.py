@@ -15,7 +15,7 @@ def main() -> None:
     parser.add_argument("--offer-id", type=int, required=True)
     parser.add_argument("--label", default="picollm-train")
     parser.add_argument("--image", default=DEFAULT_IMAGE)
-    parser.add_argument("--disk-gb", type=int, default=80)
+    parser.add_argument("--disk-gb", type=int, default=200)
     parser.add_argument("--runtype", default="ssh_direct")
     parser.add_argument("--hf-token", default=None, help="Optional HF token to inject into the instance env.")
     parser.add_argument("--wandb-api-key", default=None, help="Optional W&B API key to inject into the instance env.")

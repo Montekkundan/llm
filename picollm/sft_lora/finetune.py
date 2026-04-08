@@ -24,6 +24,7 @@ def main() -> None:
     parser.add_argument("--learning-rate", type=float, default=2e-4)
     parser.add_argument("--max-steps", type=int, default=200)
     parser.add_argument("--logging-steps", type=int, default=10)
+    parser.add_argument("--save-total-limit", type=int, default=None)
     parser.add_argument("--report-to", choices=["none", "tensorboard", "wandb"], default="none")
     parser.add_argument("--run-name", default=None)
     args = parser.parse_args()
@@ -67,6 +68,7 @@ def main() -> None:
         learning_rate=args.learning_rate,
         max_steps=args.max_steps,
         logging_steps=args.logging_steps,
+        save_total_limit=args.save_total_limit,
         dataloader_pin_memory=device == "cuda",
         report_to=trainer_report_to(args.report_to),
         run_name=args.run_name,

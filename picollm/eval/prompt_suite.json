@@ -1,8 +1,13 @@
 [
   {
-    "id": "greeting_short",
+    "id": "greeting_hi",
     "category": "conversation",
-    "prompt": "Hello, what's up?"
+    "prompt": "hi"
+  },
+  {
+    "id": "greeting_status",
+    "category": "conversation",
+    "prompt": "How are you doing today?"
   },
   {
     "id": "explain_sky_blue",
@@ -48,4 +53,3 @@
     ]
   }
 ]
-

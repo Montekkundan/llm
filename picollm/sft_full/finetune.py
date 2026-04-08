@@ -6,6 +6,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, DataCollatorForSeq
 from trl import SFTConfig, SFTTrainer
 
 from picollm.common.device import default_dtype_for_device, resolve_device
+from picollm.common.training_preview import SampleGenerationCallback, default_chat_preview_items
 from picollm.common.telemetry import ensure_reporter_ready, trainer_report_to
 from picollm.pretrain_cloud.data import load_text_dataset, load_tokenized_chat_dataset
 
@@ -29,6 +30,10 @@ def main() -> None:
     parser.add_argument("--max-steps", type=int, default=3000)
     parser.add_argument("--logging-steps", type=int, default=10)
     parser.add_argument("--save-steps", type=int, default=500)
+    parser.add_argument("--save-total-limit", type=int, default=None)
+    parser.add_argument("--resume-from-checkpoint", default=None)
+    parser.add_argument("--preview-every-steps", type=int, default=0)
+    parser.add_argument("--preview-max-new-tokens", type=int, default=96)
     parser.add_argument("--bf16", action="store_true")
     parser.add_argument("--report-to", choices=["none", "tensorboard", "wandb"], default="none")
     parser.add_argument("--run-name", default=None)
@@ -80,6 +85,7 @@ def main() -> None:
             max_steps=args.max_steps,
             logging_steps=args.logging_steps,
             save_steps=args.save_steps,
+            save_total_limit=args.save_total_limit,
             bf16=args.bf16,
             report_to=trainer_report_to(args.report_to),
             run_name=args.run_name,
@@ -110,6 +116,7 @@ def main() -> None:
             max_steps=args.max_steps,
             logging_steps=args.logging_steps,
             save_steps=args.save_steps,
+            save_total_limit=args.save_total_limit,
             bf16=args.bf16,
             report_to=trainer_report_to(args.report_to),
             run_name=args.run_name,
@@ -123,7 +130,17 @@ def main() -> None:
             train_dataset=dataset,
             processing_class=tokenizer,
         )
-    trainer.train()
+    if args.preview_every_steps > 0:
+        trainer.add_callback(
+            SampleGenerationCallback(
+                tokenizer,
+                default_chat_preview_items(),
+                every_steps=args.preview_every_steps,
+                max_new_tokens=args.preview_max_new_tokens,
+                label="chat-sft",
+            )
+        )
+    trainer.train(resume_from_checkpoint=args.resume_from_checkpoint)
     trainer.save_model(args.output_dir)
     tokenizer.save_pretrained(args.output_dir)
 

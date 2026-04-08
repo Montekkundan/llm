@@ -13,6 +13,70 @@ This folder is the practical bridge to a real chatbot:
 - local serving on Mac, Windows, or Linux
 - frontend integration through a Vercel AI SDK app
 
+## File structure
+
+Like `nanochat`, this folder is easiest to teach when students can see the whole shape first.
+
+```text
+picollm/
+├── README.md                         # High-level overview of the serious model track
+├── RUNBOOK.md                        # Single end-to-end execution guide
+├── HUGGING_FACE_SETUP.md             # Hub auth and upload setup
+├── common/
+│   ├── chat.py                       # Prompt rendering and reply generation
+│   ├── device.py                     # Device and dtype selection
+│   ├── hub.py                        # Hugging Face upload/download helpers
+│   ├── loading.py                    # Load base models, adapters, tokenizers
+│   ├── telemetry.py                  # TensorBoard / W&B setup checks
+│   └── training_preview.py           # Periodic sample generations during training
+├── pretrain_cloud/
+│   ├── speedrun.sh                   # One-command serious cloud run
+│   ├── train_tokenizer.py            # Tokenizer training
+│   ├── train.py                      # Base GPT-style pretraining
+│   ├── data.py                       # Dataset loading and chat tokenization
+│   ├── text_format.py                # Normalize raw text and message rows
+│   ├── eval.py                       # Small pretrain/checkpoint eval helper
+│   ├── push_to_hub.py                # Upload final checkpoint folder
+│   ├── vast_search_offers.py         # Find Vast.ai offers
+│   ├── vast_create_instance.py       # Create Vast.ai instances
+│   ├── vast_show_instance.py         # Show instance state
+│   ├── vast_access.py                # Print SSH/copy commands
+│   ├── vast_destroy_instance.py      # Tear down remote instances
+│   └── cleanup_local_artifacts.py    # Remove copied local artifacts safely
+├── sft_full/
+│   └── finetune.py                   # Full chat SFT on your own checkpoint
+├── sft_lora/
+│   ├── prepare_dataset.py            # Small teaching dataset builder
+│   ├── finetune.py                   # LoRA fine-tuning path
+│   ├── evaluate.py                   # Base vs LoRA quick eval
+│   └── merge_adapter.py              # Merge LoRA adapter into base weights
+├── rlhf/
+│   └── dpo_finetune.py               # Minimal DPO post-training path
+├── eval/
+│   ├── compare_checkpoints.py        # Side-by-side prompt-suite comparison
+│   ├── chat_smoke.py                 # Smoke test for obvious empty/looping failures
+│   ├── latency_benchmark.py          # Simple latency and throughput check
+│   ├── run_lm_eval.py                # Thin wrapper for lm-eval-harness
+│   ├── safety_red_team.py            # Safety and jailbreak-oriented prompt suite
+│   ├── prompt_suite.json             # Shared prompt suite
+│   └── report_template.md            # Student-facing evaluation template
+├── serve/
+│   ├── app.py                        # OpenAI-compatible backend
+│   ├── chat_cli.py                   # Terminal chat interface
+│   └── chat_web.py                   # Local web chat launcher
+└── analysis/
+    └── inspect_activations.py        # Hidden-state and attention inspection helper
+```
+
+The teaching split is:
+
+- `common/`: reusable runtime and infrastructure helpers
+- `pretrain_cloud/`: tokenizer, pretraining, remote orchestration
+- `sft_full/` and `sft_lora/`: post-training paths
+- `eval/`: checkpoint comparison and quality checks
+- `serve/`: local product surface
+- `analysis/`: deeper research-style inspection
+
 ## Why this exists next to the from-scratch code
 
 The tiny model in the notebooks is good for explanation.
