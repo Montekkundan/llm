@@ -51,6 +51,55 @@ def load_text_dataset(
     return Dataset.from_list(rows)
 
 
+def _message_rows_to_prompt_completion(value: object, eos_token: str | None) -> dict[str, str] | None:
+    if not isinstance(value, list):
+        return None
+
+    rendered: list[tuple[str, str]] = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        role = str(item.get("role", "")).strip().lower()
+        content = str(item.get("content", "")).strip()
+        if role not in {"system", "user", "assistant"} or not content:
+            continue
+        rendered.append((role, content))
+
+    if len(rendered) < 2 or rendered[-1][0] != "assistant":
+        return None
+
+    prompt_lines = [f"<|{role}|> {content}" for role, content in rendered[:-1]]
+    prompt_lines.append("<|assistant|>")
+    completion = f" {rendered[-1][1]}"
+    if eos_token:
+        completion = f"{completion}{eos_token}"
+    return {
+        "prompt": "\n".join(prompt_lines),
+        "completion": completion,
+    }
+
+
+def load_prompt_completion_dataset(
+    dataset_name: str | None,
+    dataset_config: str | None,
+    dataset_split: str,
+    messages_column: str,
+    eos_token: str | None = None,
+    streaming: bool = False,
+) -> TextDataset:
+    if not dataset_name:
+        raise ValueError("A dataset_name is required for prompt-completion loading.")
+
+    dataset = load_dataset(dataset_name, dataset_config, split=dataset_split, streaming=streaming)
+    column_names = _dataset_columns(dataset)
+
+    def _normalize(example: dict[str, object]) -> dict[str, str] | None:
+        return _message_rows_to_prompt_completion(example[messages_column], eos_token)
+
+    mapped = dataset.map(_normalize, remove_columns=column_names)
+    return mapped.filter(lambda item: bool(item["prompt"]) and bool(item["completion"]))
+
+
 def iter_texts(
     dataset_name: str | None,
     dataset_config: str | None,

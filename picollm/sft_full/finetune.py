@@ -7,7 +7,7 @@ from trl import SFTConfig, SFTTrainer
 
 from picollm.common.device import default_dtype_for_device, resolve_device
 from picollm.common.telemetry import ensure_reporter_ready, trainer_report_to
-from picollm.pretrain_cloud.data import load_text_dataset
+from picollm.pretrain_cloud.data import load_prompt_completion_dataset, load_text_dataset
 
 
 def main() -> None:
@@ -40,23 +40,33 @@ def main() -> None:
     if tokenizer.pad_token is None and tokenizer.eos_token is not None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    dataset = load_text_dataset(
-        dataset_name=args.dataset_name,
-        dataset_config=args.dataset_config,
-        dataset_split=args.dataset_split,
-        text_column=args.text_column,
-        text_files=args.text_file,
-        alternating_chat_roles=args.alternating_chat_roles,
-        streaming=args.streaming,
-    )
+    use_prompt_completion = bool(args.dataset_name and args.text_column == "messages" and not args.text_file)
+    if use_prompt_completion:
+        dataset = load_prompt_completion_dataset(
+            dataset_name=args.dataset_name,
+            dataset_config=args.dataset_config,
+            dataset_split=args.dataset_split,
+            messages_column=args.text_column,
+            eos_token=tokenizer.eos_token,
+            streaming=args.streaming,
+        )
+    else:
+        dataset = load_text_dataset(
+            dataset_name=args.dataset_name,
+            dataset_config=args.dataset_config,
+            dataset_split=args.dataset_split,
+            text_column=args.text_column,
+            text_files=args.text_file,
+            alternating_chat_roles=args.alternating_chat_roles,
+            streaming=args.streaming,
+        )
 
     model = AutoModelForCausalLM.from_pretrained(
         args.model,
         dtype=default_dtype_for_device(device),
     )
-    config = SFTConfig(
+    config_kwargs = dict(
         output_dir=args.output_dir,
-        dataset_text_field="text",
         per_device_train_batch_size=args.batch_size,
         gradient_accumulation_steps=args.grad_accum,
         learning_rate=args.learning_rate,
@@ -71,6 +81,13 @@ def main() -> None:
         ddp_find_unused_parameters=False,
         save_only_model=True,
     )
+    if use_prompt_completion:
+        config_kwargs["completion_only_loss"] = True
+        if tokenizer.eos_token is not None:
+            config_kwargs["eos_token"] = tokenizer.eos_token
+    else:
+        config_kwargs["dataset_text_field"] = "text"
+    config = SFTConfig(**config_kwargs)
     trainer = SFTTrainer(
         model=model,
         args=config,
