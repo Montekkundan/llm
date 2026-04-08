@@ -10,10 +10,14 @@ from transformers import PreTrainedModel, PreTrainedTokenizerBase, TextIteratorS
 def normalize_messages(messages: Iterable[dict[str, str]]) -> list[dict[str, str]]:
     normalized: list[dict[str, str]] = []
     for message in messages:
+        role = message["role"].strip()
+        content = message["content"].strip()
+        if not content:
+            continue
         normalized.append(
             {
-                "role": message["role"].strip(),
-                "content": message["content"].strip(),
+                "role": role,
+                "content": content,
             }
         )
     return normalized
@@ -35,7 +39,9 @@ def build_prompt(
     for message in normalized:
         lines.append(f"<|{message['role'].lower()}|> {message['content']}")
     if add_generation_prompt:
-        lines.append("<|assistant|>")
+        # Match the SFT text format, where assistant turns begin with the role token
+        # followed by a separating space before the actual response text.
+        lines.append("<|assistant|> ")
     return "\n".join(lines)
 
 

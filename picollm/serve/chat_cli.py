@@ -11,7 +11,7 @@ def main() -> None:
     parser.add_argument("--adapter", default=None)
     parser.add_argument("--device", default="auto")
     parser.add_argument("--quantization", default="none", choices=["none", "8bit", "4bit"])
-    parser.add_argument("--system-prompt", default="You are a helpful assistant.")
+    parser.add_argument("--system-prompt", default="")
     parser.add_argument("--max-new-tokens", type=int, default=256)
     parser.add_argument("--temperature", type=float, default=0.7)
     parser.add_argument("--no-stream", action="store_true")
