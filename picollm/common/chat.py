@@ -39,9 +39,8 @@ def build_prompt(
     for message in normalized:
         lines.append(f"<|{message['role'].lower()}|> {message['content']}")
     if add_generation_prompt:
-        # Match the SFT text format, where assistant turns begin with the role token
-        # followed by a separating space before the actual response text.
-        lines.append("<|assistant|> ")
+        # The next generated token should include any leading space itself.
+        lines.append("<|assistant|>")
     return "\n".join(lines)
 
 
