@@ -36,7 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import type { ChatStatus, FileUIPart } from "ai";
+import type { ChatStatus, FileUIPart, UIMessage } from "ai";
 import {
   CornerDownLeftIcon,
   ImageIcon,
@@ -413,7 +413,9 @@ export const PromptInputActionAddAttachments = ({
   );
 };
 
-export type PromptInputMessage = UseChatHelpers<never>["sendMessage"];
+export type PromptInputMessage = NonNullable<
+  Parameters<UseChatHelpers<UIMessage>["sendMessage"]>[0]
+>;
 
 export type PromptInputProps = Omit<
   HTMLAttributes<HTMLFormElement>,

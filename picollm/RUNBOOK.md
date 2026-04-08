@@ -902,7 +902,7 @@ uv run python -m picollm.serve.chat_web \
   --device auto
 ```
 
-Then in [apps/vercel_ai_sdk_chat](/Users/montekkundan/Developer/ML/llm/apps/vercel_ai_sdk_chat):
+Then in [apps/vercel_ai_sdk_chat](../apps/vercel_ai_sdk_chat):
 
 ```bash
 npm install
@@ -965,10 +965,10 @@ uv run python -m picollm.pretrain_cloud.cleanup_local_artifacts \
 
 ## 12. Related docs
 
-- [README.md](/Users/montekkundan/Developer/ML/llm/picollm/README.md)
-- [HUGGING_FACE_SETUP.md](/Users/montekkundan/Developer/ML/llm/picollm/HUGGING_FACE_SETUP.md)
-- [pretrain_cloud/VAST_AI_SETUP.md](/Users/montekkundan/Developer/ML/llm/picollm/pretrain_cloud/VAST_AI_SETUP.md)
-- [sft_lora/README.md](/Users/montekkundan/Developer/ML/llm/picollm/sft_lora/README.md)
-- [serve/README.md](/Users/montekkundan/Developer/ML/llm/picollm/serve/README.md)
-- [../apps/vercel_ai_sdk_chat/README.md](/Users/montekkundan/Developer/ML/llm/apps/vercel_ai_sdk_chat/README.md)
-- [../apps/opentui_ai_sdk_chat/README.md](/Users/montekkundan/Developer/ML/llm/apps/opentui_ai_sdk_chat/README.md)
+- [README.md](./README.md)
+- [HUGGING_FACE_SETUP.md](./HUGGING_FACE_SETUP.md)
+- [pretrain_cloud/VAST_AI_SETUP.md](./pretrain_cloud/VAST_AI_SETUP.md)
+- [sft_lora/README.md](./sft_lora/README.md)
+- [serve/README.md](./serve/README.md)
+- [../apps/vercel_ai_sdk_chat/README.md](../apps/vercel_ai_sdk_chat/README.md)
+- [../apps/opentui_ai_sdk_chat/README.md](../apps/opentui_ai_sdk_chat/README.md)

@@ -12,5 +12,9 @@
     "@opentui/react": "^0.1.97",
     "ai": "^5.0.92",
     "react": "19.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.2",
+    "@types/react": "^19.2.2"
   }
 }

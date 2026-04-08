@@ -110,7 +110,7 @@ This version uses:
 
 The route is:
 
-- [app/api/chat/route.ts](/Users/montekkundan/Developer/ML/llm/apps/vercel_ai_sdk_chat/app/api/chat/route.ts)
+- [app/api/chat/route.ts](./app/api/chat/route.ts)
 
 ## Deploying the frontend
 
@@ -133,6 +133,6 @@ That means the full project can look like this:
 
 ## Related course docs
 
-- [README.md](/Users/montekkundan/Developer/ML/llm/README.md)
-- [picollm/RUNBOOK.md](/Users/montekkundan/Developer/ML/llm/picollm/RUNBOOK.md)
-- [picollm/serve/README.md](/Users/montekkundan/Developer/ML/llm/picollm/serve/README.md)
+- [README.md](../../README.md)
+- [picollm/RUNBOOK.md](../../picollm/RUNBOOK.md)
+- [picollm/serve/README.md](../../picollm/serve/README.md)

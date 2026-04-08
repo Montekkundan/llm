@@ -2,7 +2,7 @@
 
 `picollm/` is the serious-model track in this repo.
 
-Start with [RUNBOOK.md](/Users/montekkundan/Developer/ML/llm/picollm/RUNBOOK.md) if you want the full execution flow in one place.
+Start with [RUNBOOK.md](./RUNBOOK.md) if you want the full execution flow in one place.
 
 The rest of this repo teaches how language models work from scratch.
 
@@ -163,13 +163,13 @@ Typical flow:
 
 See:
 
-- [pretrain_cloud/README.md](/Users/montekkundan/Developer/ML/llm/picollm/pretrain_cloud/README.md)
-- [sft_lora/README.md](/Users/montekkundan/Developer/ML/llm/picollm/sft_lora/README.md)
-- [rlhf/README.md](/Users/montekkundan/Developer/ML/llm/picollm/rlhf/README.md)
-- [serve/README.md](/Users/montekkundan/Developer/ML/llm/picollm/serve/README.md)
-- [eval/README.md](/Users/montekkundan/Developer/ML/llm/picollm/eval/README.md)
-- [HUGGING_FACE_SETUP.md](/Users/montekkundan/Developer/ML/llm/picollm/HUGGING_FACE_SETUP.md)
-- [pretrain_cloud/VAST_AI_SETUP.md](/Users/montekkundan/Developer/ML/llm/picollm/pretrain_cloud/VAST_AI_SETUP.md)
+- [pretrain_cloud/README.md](./pretrain_cloud/README.md)
+- [sft_lora/README.md](./sft_lora/README.md)
+- [rlhf/README.md](./rlhf/README.md)
+- [serve/README.md](./serve/README.md)
+- [eval/README.md](./eval/README.md)
+- [HUGGING_FACE_SETUP.md](./HUGGING_FACE_SETUP.md)
+- [pretrain_cloud/VAST_AI_SETUP.md](./pretrain_cloud/VAST_AI_SETUP.md)
 
 ## Advanced research utilities
 

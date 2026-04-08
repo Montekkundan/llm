@@ -1,4 +1,6 @@
 'use client';
+import { useChat } from '@ai-sdk/react';
+import { DefaultChatTransport } from 'ai';
 import {
   Conversation,
   ConversationContent,
@@ -16,8 +18,7 @@ import {
   PromptInputTools,
 } from '@/components/ai-elements/prompt-input';
 import { CopyIcon, RefreshCcwIcon } from 'lucide-react';
-import { useChat } from '@ai-sdk/react';
-import { Fragment, SetStateAction, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { Suggestion, Suggestions } from '@/components/ai-elements/suggestion';
 import { Settings } from '@/components/settings';
 
@@ -29,42 +30,36 @@ const suggestions = [
 
 export default function Chat() {
   const [input, setInput] = useState('');
-  const { messages, sendMessage, regenerate, stop, status } = useChat();
-
-  const getBodyOverrides = () => ({
-    apiKey: localStorage.getItem("PICOLLM_API_KEY") || undefined,
-    baseUrl: localStorage.getItem("PICOLLM_BASE_URL") || undefined,
-    modelId: localStorage.getItem("PICOLLM_MODEL") || undefined,
-  });
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: '/api/chat',
+        body: () => ({
+          apiKey: localStorage.getItem('PICOLLM_API_KEY') || undefined,
+          baseUrl: localStorage.getItem('PICOLLM_BASE_URL') || undefined,
+          modelId: localStorage.getItem('PICOLLM_MODEL') || undefined,
+        }),
+      }),
+    [],
+  );
+  const { messages, sendMessage, regenerate, stop, status } = useChat({ transport });
 
   const handleSubmit = (message: PromptInputMessage) => {
-
-    // @ts-expect-error I dont know why this is happening
-    const hasText = Boolean(message.text);
-
-    if (!(hasText)) {
+    if (!('text' in message) || typeof message.text !== 'string') {
       return;
     }
 
-    sendMessage(
-      {
-        // @ts-expect-error ditto
-        text: message.text,
-      },
-      {
-        body: getBodyOverrides(),
-      }
-    );
+    const text = message.text.trim();
+    if (!text) {
+      return;
+    }
+
+    sendMessage({ text });
     setInput('');
   };
 
   const handleSuggestionClick = (suggestion: string) => {
-    sendMessage(
-      { text: suggestion },
-      {
-        body: getBodyOverrides(),
-      }
-    );
+    sendMessage({ text: suggestion });
     setInput('');
   };
 
@@ -127,7 +122,7 @@ export default function Chat() {
                 <Suggestion
                   disabled={status === 'streaming' || status === 'submitted'}
                   key={suggestion}
-                  onClick={handleSuggestionClick}
+                  onClick={() => handleSuggestionClick(suggestion)}
                   suggestion={suggestion}
                 />
               ))}
@@ -136,7 +131,7 @@ export default function Chat() {
             <PromptInput onSubmit={handleSubmit} globalDrop multiple>
               <PromptInputBody>
                 <PromptInputTextarea
-                  onChange={(e: { target: { value: SetStateAction<string>; }; }) => setInput(e.target.value)}
+                  onChange={(e) => setInput(e.target.value)}
                   value={input}
                   placeholder="Ask your picoLLM model something..."
                   disabled={status === 'streaming' || status === 'submitted'}

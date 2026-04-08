@@ -36,7 +36,7 @@ Then use this workflow:
 
 For the serious chatbot path, start with:
 
-- [picollm/RUNBOOK.md](/Users/montekkundan/Developer/ML/llm/picollm/RUNBOOK.md)
+- [picollm/RUNBOOK.md](./picollm/RUNBOOK.md)
 
 That runbook covers:
 
@@ -61,12 +61,12 @@ Use these directories by purpose:
 
 For the final lecture sequence:
 
-- [picollm/RUNBOOK.md](/Users/montekkundan/Developer/ML/llm/picollm/RUNBOOK.md)
-- [picollm/HUGGING_FACE_SETUP.md](/Users/montekkundan/Developer/ML/llm/picollm/HUGGING_FACE_SETUP.md)
-- [picollm/pretrain_cloud/VAST_AI_SETUP.md](/Users/montekkundan/Developer/ML/llm/picollm/pretrain_cloud/VAST_AI_SETUP.md)
-- [prompts/real_chatbot_workflow/base_vs_lora_prompts.md](/Users/montekkundan/Developer/ML/llm/prompts/real_chatbot_workflow/base_vs_lora_prompts.md)
-- [apps/vercel_ai_sdk_chat/README.md](/Users/montekkundan/Developer/ML/llm/apps/vercel_ai_sdk_chat/README.md)
-- [apps/opentui_ai_sdk_chat/README.md](/Users/montekkundan/Developer/ML/llm/apps/opentui_ai_sdk_chat/README.md)
+- [picollm/RUNBOOK.md](./picollm/RUNBOOK.md)
+- [picollm/HUGGING_FACE_SETUP.md](./picollm/HUGGING_FACE_SETUP.md)
+- [picollm/pretrain_cloud/VAST_AI_SETUP.md](./picollm/pretrain_cloud/VAST_AI_SETUP.md)
+- [prompts/real_chatbot_workflow/base_vs_lora_prompts.md](./prompts/real_chatbot_workflow/base_vs_lora_prompts.md)
+- [apps/vercel_ai_sdk_chat/README.md](./apps/vercel_ai_sdk_chat/README.md)
+- [apps/opentui_ai_sdk_chat/README.md](./apps/opentui_ai_sdk_chat/README.md)
 
 ## Reference Repos
 
@@ -128,4 +128,4 @@ If you want to cite this repo itself, use:
 
 ## License
 
-MIT. See [LICENSE](/Users/montekkundan/Developer/ML/llm/LICENSE).
+MIT. See [LICENSE](./LICENSE).

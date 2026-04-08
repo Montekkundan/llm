@@ -81,6 +81,6 @@ PICOLLM_MODEL=Qwen/Qwen2.5-1.5B-Instruct
 
 ## Related course docs
 
-- [README.md](/Users/montekkundan/Developer/ML/llm/README.md)
-- [picollm/RUNBOOK.md](/Users/montekkundan/Developer/ML/llm/picollm/RUNBOOK.md)
-- [apps/vercel_ai_sdk_chat/README.md](/Users/montekkundan/Developer/ML/llm/apps/vercel_ai_sdk_chat/README.md)
+- [README.md](../../README.md)
+- [picollm/RUNBOOK.md](../../picollm/RUNBOOK.md)
+- [apps/vercel_ai_sdk_chat/README.md](../vercel_ai_sdk_chat/README.md)

@@ -77,8 +77,8 @@ That makes it usable from clients that expect an OpenAI-style API, including the
 
 See:
 
-- [apps/vercel_ai_sdk_chat/README.md](/Users/montekkundan/Developer/ML/llm/apps/vercel_ai_sdk_chat/README.md)
-- [apps/opentui_ai_sdk_chat/README.md](/Users/montekkundan/Developer/ML/llm/apps/opentui_ai_sdk_chat/README.md)
+- [apps/vercel_ai_sdk_chat/README.md](../../apps/vercel_ai_sdk_chat/README.md)
+- [apps/opentui_ai_sdk_chat/README.md](../../apps/opentui_ai_sdk_chat/README.md)
 
 ## Quantization
 

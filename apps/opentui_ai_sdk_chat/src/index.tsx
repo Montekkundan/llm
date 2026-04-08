@@ -11,6 +11,8 @@ type ChatTurn = {
   content: string;
 };
 
+type OpenTuiSubmitEvent = {};
+
 const provider = createOpenAICompatible({
   name: "picollm",
   baseURL: process.env.PICOLLM_BASE_URL || "http://127.0.0.1:8008/v1",
@@ -98,6 +100,13 @@ function App() {
     }
   };
 
+  function handleInputSubmit(value: string): void;
+  function handleInputSubmit(event: OpenTuiSubmitEvent): void;
+  function handleInputSubmit(valueOrEvent: string | OpenTuiSubmitEvent) {
+    const value = typeof valueOrEvent === "string" ? valueOrEvent : draft;
+    void submit(value);
+  }
+
   return (
     <box
       style={{
@@ -157,7 +166,7 @@ function App() {
         <input
           value={draft}
           onInput={setDraft}
-          onSubmit={submit}
+          onSubmit={handleInputSubmit}
           focused={status !== "streaming"}
           placeholder={status === "streaming" ? "Waiting for model..." : "Ask your picoLLM model something..."}
           width={120}

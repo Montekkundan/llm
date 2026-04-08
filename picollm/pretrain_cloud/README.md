@@ -15,7 +15,7 @@ Use a rented GPU for this track.
 
 - Vast.ai is the simplest low-cost route for ad hoc GPU rentals: [Instances overview](https://docs.vast.ai/documentation/instances)
 - Hugging Face Jobs is cleaner when you want a managed training workflow and Hub integration: [Jobs overview](https://huggingface.co/docs/huggingface_hub/guides/jobs)
-- If you want a CLI-first Vast workflow in this repo, use [VAST_AI_SETUP.md](/Users/montekkundan/Developer/ML/llm/picollm/pretrain_cloud/VAST_AI_SETUP.md)
+- If you want a CLI-first Vast workflow in this repo, use [VAST_AI_SETUP.md](./VAST_AI_SETUP.md)
 
 This path is best for:
 
