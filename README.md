@@ -1,5 +1,7 @@
 # LLM From Scratch and Deploy
 
+![picoLLM](picollm.png)
+
 This repository is the runnable companion to the lecture notes at `lectures.montek.dev`.
 
 It has two layers:
