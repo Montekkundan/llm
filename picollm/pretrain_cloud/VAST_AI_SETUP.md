@@ -414,12 +414,12 @@ uv run torchrun --nproc_per_node=2 -m picollm.sft_full.finetune \
   --dataset-split train_sft \
   --text-column messages \
   --output-dir artifacts/picollm/chat-sft-run \
-  --batch-size 4 \
-  --grad-accum 8 \
+  --batch-size 2 \
+  --grad-accum 16 \
   --learning-rate 2e-5 \
-  --warmup-steps 100 \
-  --save-steps 250 \
-  --max-steps 1500 \
+  --warmup-steps 10 \
+  --save-steps 50 \
+  --max-steps 150 \
   --bf16
 ```
 
