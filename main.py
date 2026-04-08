@@ -35,12 +35,10 @@ def main():
     for slug in CONCEPTS:
         print(f"\n[{slug}]")
         print(f"- notebook: notebooks/{slug}/lecture_walkthrough.ipynb")
-        print(f"- script: scripts/{slug}/demo.py")
     print("\nProduct layer:")
     for slug in PRODUCT:
         print(f"- {slug}")
-    print("\nRun with: uv run python scripts/<topic>/demo.py")
-    print("Open notebooks with: uv run jupyter lab")
+    print("\nPrimary teaching path: open notebooks with: uv run jupyter lab")
 
 
 if __name__ == "__main__":
