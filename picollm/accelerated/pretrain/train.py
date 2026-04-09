@@ -25,6 +25,7 @@ print_banner()
 
 parser = argparse.ArgumentParser(description="Pretrain base model")
 parser.add_argument("--run", type=str, default="dummy", help="wandb run name ('dummy' disables wandb logging)")
+parser.add_argument("--wandb-entity", type=str, default=os.environ.get("WANDB_ENTITY", "montekkundan"), help="W&B entity/account to log runs under")
 parser.add_argument("--device-type", type=str, default="", help="cuda|cpu|mps (empty = autodetect)")
 parser.add_argument("--fp8", action="store_true", help="enable FP8 training (requires H100+ GPU and torchao)")
 parser.add_argument("--fp8-recipe", type=str, default="tensorwise", choices=["rowwise", "tensorwise"], help="FP8 scaling recipe: tensorwise (faster, recommended) or rowwise (more accurate but slower)")
@@ -71,7 +72,12 @@ else:
 print0(f"COMPUTE_DTYPE: {COMPUTE_DTYPE} ({COMPUTE_DTYPE_REASON})")
 
 use_dummy_wandb = args.run == "dummy" or not master_process
-wandb_run = DummyWandb() if use_dummy_wandb else wandb.init(project="picollm-accelerated", name=args.run, config=user_config)
+wandb_run = DummyWandb() if use_dummy_wandb else wandb.init(
+    project="picollm-accelerated",
+    entity=args.wandb_entity,
+    name=args.run,
+    config=user_config,
+)
 
 from picollm.accelerated.flash_attention import USE_FA3
 using_fa3 = USE_FA3

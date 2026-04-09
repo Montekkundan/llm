@@ -23,6 +23,7 @@ from picollm.accelerated.tasks.spellingbee import SimpleSpelling, SpellingBee
 
 parser = argparse.ArgumentParser(description="Supervised fine-tuning (SFT) the model")
 parser.add_argument("--run", type=str, default="dummy", help="wandb run name ('dummy' disables wandb logging)")
+parser.add_argument("--wandb-entity", type=str, default=os.environ.get("WANDB_ENTITY", "montekkundan"), help="W&B entity/account to log runs under")
 parser.add_argument("--device-type", type=str, default="", help="cuda|cpu|mps (empty = autodetect)")
 parser.add_argument("--model-tag", type=str, default=None, help="model tag to load from")
 parser.add_argument("--model-step", type=int, default=None, help="model step to load from")
@@ -62,7 +63,12 @@ else:
     gpu_peak_flops = float('inf')  # MFU not meaningful for CPU/MPS
 
 use_dummy_wandb = args.run == "dummy" or not master_process
-wandb_run = DummyWandb() if use_dummy_wandb else wandb.init(project="picollm-accelerated-sft", name=args.run, config=user_config)
+wandb_run = DummyWandb() if use_dummy_wandb else wandb.init(
+    project="picollm-accelerated-sft",
+    entity=args.wandb_entity,
+    name=args.run,
+    config=user_config,
+)
 
 if not HAS_FA3:
     print0("WARNING: Flash Attention 3 not available, using PyTorch SDPA fallback. Training will be less efficient.")
