@@ -279,8 +279,7 @@ class Report:
                     continue
                 with open(section_file, "r", encoding="utf-8") as in_file:
                     section = in_file.read()
-                if "rl" not in file_name:
-                    end_time = extract_timestamp(section, "timestamp:")
+                end_time = extract_timestamp(section, "timestamp:")
                 if file_name == "base-model-evaluation.md":
                     final_metrics["base"] = extract(section, "CORE")
                 if file_name == "chat-evaluation-sft.md":

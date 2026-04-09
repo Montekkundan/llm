@@ -33,7 +33,7 @@ MAX_MAX_TOKENS = 4096
 
 parser = argparse.ArgumentParser(description="picoLLM web server")
 parser.add_argument("-n", "--num-gpus", type=int, default=1, help="Number of GPUs to use")
-parser.add_argument("-i", "--source", type=str, default="sft", help="Model source: base|sft|rl")
+parser.add_argument("-i", "--source", type=str, default="sft", choices=["base", "sft"], help="Model source: base|sft")
 parser.add_argument("-g", "--model-tag", type=str, default=None, help="Model tag to load")
 parser.add_argument("-s", "--step", type=int, default=None, help="Checkpoint step to load")
 parser.add_argument("-p", "--port", type=int, default=8008, help="Port to run the server on")
