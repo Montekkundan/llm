@@ -1,3 +1,4 @@
+import os
 import torch
 import torch.nn.functional as F
 
@@ -22,6 +23,11 @@ _fa3 = _load_flash_attention_3()
 HAS_FA3 = _fa3 is not None
 
 _override_impl = None
+_env_override = os.environ.get("PICOLLM_FLASH_IMPL", "").strip().lower()
+if _env_override in {"fa3", "sdpa"}:
+    _override_impl = _env_override
+elif _env_override:
+    raise ValueError(f"Invalid PICOLLM_FLASH_IMPL={_env_override!r}; expected 'fa3' or 'sdpa'")
 
 
 def _resolve_use_fa3():
