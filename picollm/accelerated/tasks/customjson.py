@@ -1,5 +1,6 @@
 import os
 import json
+from pathlib import Path
 from picollm.accelerated.tasks.common import Task
 
 class CustomJSON(Task):
@@ -15,12 +16,14 @@ class CustomJSON(Task):
         self.conversations = []
 
         if not os.path.exists(filepath):
+            repo_identity = Path(__file__).resolve().parents[3] / "picollm" / "accelerated" / "data" / "identity_conversations.jsonl"
             print("-" * 80)
             print(f"Warning: File {filepath} does not exist")
             print("Hint")
             print("This file is used by the chat training mix for identity conversations.")
-            print("Download it with:")
-            print(f"curl -L -o {filepath} https://karpathy-public.s3.us-west-2.amazonaws.com/identity_conversations.jsonl")
+            print("Use the repo-local canonical picoLLM identity file or let speedrun.sh copy it in place:")
+            print(f"cp {repo_identity} {filepath}")
+            print("You can also override the source path with PICOLLM_IDENTITY_CONVERSATIONS_FILE.")
             print("-" * 80)
 
         else:

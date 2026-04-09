@@ -31,6 +31,7 @@ Notes:
 - `speedrun.sh` now starts with a distributed preflight that does a small synthetic forward/backward/optimizer smoke test on the same FA3/FP8/compile stack before dataset work begins.
 - On Hopper-class boxes it keeps the fast defaults. On non-Hopper CUDA boxes it automatically disables FP8, forces SDPA, and switches to `window-pattern=L` so the run is slower but materially more portable.
 - Rebuild the environment with `uv sync --extra gpu` after pulling, because picoLLM now pins `torch==2.9.1` for this runtime path.
+- The default SFT identity data now comes from the repo-local `picollm/accelerated/data/identity_conversations.jsonl` instead of downloading Karpathy's nanochat identity file.
 - `HF_UPLOAD_REPO_ID` is optional. If set, the speedrun uploads the final runtime artifacts to a Hugging Face model repo.
 - `HF_UPLOAD_PRIVATE=1` keeps that repo private by default.
 
@@ -42,6 +43,7 @@ Optional manual overrides if you need to pin a different configuration:
 - `PICOLLM_ENABLE_FP8`
 - `PICOLLM_ACTIVATION_CHECKPOINTING`
 - `PICOLLM_WINDOW_PATTERN`
+- `PICOLLM_IDENTITY_CONVERSATIONS_FILE`
 
 ## Full Run
 

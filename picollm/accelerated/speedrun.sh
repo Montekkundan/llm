@@ -191,8 +191,13 @@ torchrun --standalone --nproc_per_node="$PICOLLM_NPROC_PER_NODE" -m picollm.acce
 torchrun --standalone --nproc_per_node="$PICOLLM_NPROC_PER_NODE" -m picollm.accelerated.pretrain.eval -- \
   --device-batch-size="$PICOLLM_DEVICE_BATCH_SIZE"
 
-curl -L -o "$PICOLLM_BASE_DIR/identity_conversations.jsonl" \
-  https://karpathy-public.s3.us-west-2.amazonaws.com/identity_conversations.jsonl
+IDENTITY_SOURCE="${PICOLLM_IDENTITY_CONVERSATIONS_FILE:-$REPO_ROOT/picollm/accelerated/data/identity_conversations.jsonl}"
+if [[ ! -f "$IDENTITY_SOURCE" ]]; then
+  echo "Missing identity conversations file: $IDENTITY_SOURCE" >&2
+  echo "Set PICOLLM_IDENTITY_CONVERSATIONS_FILE to override, or commit the repo-local picoLLM identity file." >&2
+  exit 1
+fi
+cp "$IDENTITY_SOURCE" "$PICOLLM_BASE_DIR/identity_conversations.jsonl"
 
 torchrun --standalone --nproc_per_node="$PICOLLM_NPROC_PER_NODE" -m picollm.accelerated.chat.sft -- \
   --device-batch-size="$PICOLLM_DEVICE_BATCH_SIZE" \
