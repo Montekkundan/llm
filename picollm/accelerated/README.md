@@ -26,9 +26,9 @@ Main entrypoints:
 
 - `python -m picollm.accelerated.dataset`
 - `python -m picollm.accelerated.pretrain.train_tokenizer`
-- `python -m picollm.accelerated.pretrain.train --depth=24 --target-param-data-ratio=8 --device-batch-size=16 --fp8`
-- `python -m picollm.accelerated.pretrain.eval --device-batch-size=16`
-- `python -m picollm.accelerated.chat.sft --device-batch-size=16`
+- `python -m picollm.accelerated.pretrain.train --depth=24 --target-param-data-ratio=8 --device-batch-size=8 --fp8`
+- `python -m picollm.accelerated.pretrain.eval --device-batch-size=8`
+- `python -m picollm.accelerated.chat.sft --device-batch-size=8`
 - `python -m picollm.accelerated.chat.eval -i sft`
 - `python -m picollm.accelerated.chat.cli`
 - `python -m picollm.accelerated.chat.web`

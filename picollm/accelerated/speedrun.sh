@@ -38,18 +38,18 @@ wait "$DATASET_DOWNLOAD_PID"
 torchrun --standalone --nproc_per_node=8 -m picollm.accelerated.pretrain.train \
   --depth=24 \
   --target-param-data-ratio=8 \
-  --device-batch-size=16 \
+  --device-batch-size=8 \
   --fp8 \
   --run="$WANDB_RUN"
 
 torchrun --standalone --nproc_per_node=8 -m picollm.accelerated.pretrain.eval \
-  --device-batch-size=16
+  --device-batch-size=8
 
 curl -L -o "$PICOLLM_BASE_DIR/identity_conversations.jsonl" \
   https://karpathy-public.s3.us-west-2.amazonaws.com/identity_conversations.jsonl
 
 torchrun --standalone --nproc_per_node=8 -m picollm.accelerated.chat.sft \
-  --device-batch-size=16 \
+  --device-batch-size=8 \
   --run="$WANDB_RUN"
 
 torchrun --standalone --nproc_per_node=8 -m picollm.accelerated.chat.eval \
