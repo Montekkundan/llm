@@ -176,8 +176,6 @@ def sft_data_generator_bos_bestfit(split, buffer_size=100):
     cursor = ddp_rank  # Each rank processes different conversations (for fetching)
     consumed = ddp_rank  # Track actual consumption separately from buffering
     epoch = 1
-    it = 0  # iteration counter
-
     def refill_buffer():
         nonlocal cursor, epoch
         while len(conv_buffer) < buffer_size:
@@ -230,17 +228,10 @@ def sft_data_generator_bos_bestfit(split, buffer_size=100):
             rows.append(row[:row_capacity])
             mask_rows.append(mask_row[:row_capacity])
 
-        it += 1
-        if 0 < args.num_iterations <= it and split == "train":
-            last_step = True
-
         if split == "train":
             current_epoch = epoch
-            if args.num_iterations > 0:
-                approx_progress = it / args.num_iterations
-            else:
-                approx_progress = consumed / dataset_size
-            if consumed >= dataset_size:
+            approx_progress = min(consumed / dataset_size, 1.0)
+            if args.num_iterations <= 0 and consumed >= dataset_size:
                 last_step = True
 
         use_cuda = device_type == "cuda"
@@ -284,6 +275,8 @@ total_training_time = 0 # total wall-clock time of training
 step = 0
 while True:
     flops_so_far = num_flops_per_token * args.total_batch_size * step
+    if args.num_iterations > 0 and step >= args.num_iterations:
+        last_step = True
 
     if ddp:
         last_step_tensor = torch.tensor(last_step, dtype=torch.int32, device=device)
@@ -377,7 +370,10 @@ while True:
         else:
             loss.backward()
         x, y = next(train_loader) # prefetch the next batch while the GPU is busy with forward/backward
-        progress = max(progress, approx_progress) # only increase progress monotonically
+        if args.num_iterations <= 0:
+            progress = max(progress, approx_progress) # only increase progress monotonically for epoch-based runs
+    if args.num_iterations > 0:
+        progress = min(step / args.num_iterations, 1.0)
     lrm = get_lr_multiplier(progress)
     muon_momentum = get_muon_momentum(step)
     for group in optimizer.param_groups:
@@ -399,6 +395,8 @@ while True:
     dt = t1 - t0
 
     step += 1
+    if args.num_iterations > 0:
+        progress = min(step / args.num_iterations, 1.0)
 
     smooth_train_loss = ema_beta * smooth_train_loss + (1 - ema_beta) * train_loss.item() # EMA the training loss
     debiased_smooth_loss = smooth_train_loss / (1 - ema_beta**(step + 1)) # debias the EMA
