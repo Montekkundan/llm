@@ -7,7 +7,7 @@ This repository is the runnable companion to the lecture notes at `lectures.mont
 It has two layers:
 
 - theory and explanations in the lecture notes
-- runnable notebooks, scripts, and demo apps in this repo
+- runnable notebooks, scripts, apps, and `picollm/` in this repo
 
 ## Start Here
 
@@ -21,31 +21,25 @@ Install the repo first:
 uv sync
 ```
 
-Optional but recommended if you plan to use Hugging Face models or push checkpoints:
-
-```bash
-hf auth login
-```
-
 Then use this workflow:
 
 1. Open the relevant lesson on `lectures.montek.dev`.
 2. Read the theory there first.
 3. Open the linked notebook or script from this repo.
-4. For the serious chatbot path, follow `picollm/RUNBOOK.md`.
+4. For the serious from-scratch chatbot path, follow `picollm/accelerated/README.md`.
 
 For the serious chatbot path, start with:
 
-- [picollm/RUNBOOK.md](./picollm/RUNBOOK.md)
+- [picollm/accelerated/README.md](./picollm/accelerated/README.md)
+- [picollm/accelerated/speedrun.sh](./picollm/accelerated/speedrun.sh)
 
-That runbook covers:
+That path covers:
 
-- baseline Qwen
-- LoRA fine-tuning
-- base vs LoRA comparison
-- serving the adapted model
-- Vast.ai helper commands
-- bringing a cloud-trained checkpoint back to a local machine
+- tokenizer training
+- base pretraining
+- chat SFT
+- evaluation and reporting
+- CLI or web interaction at the end of the run
 
 ## Repo Guide
 
@@ -61,10 +55,9 @@ Use these directories by purpose:
 
 For the final lecture sequence:
 
-- [picollm/RUNBOOK.md](./picollm/RUNBOOK.md)
-- [picollm/HUGGING_FACE_SETUP.md](./picollm/HUGGING_FACE_SETUP.md)
-- [picollm/pretrain_cloud/VAST_AI_SETUP.md](./picollm/pretrain_cloud/VAST_AI_SETUP.md)
-- [prompts/real_chatbot_workflow/base_vs_lora_prompts.md](./prompts/real_chatbot_workflow/base_vs_lora_prompts.md)
+- [picollm/accelerated/README.md](./picollm/accelerated/README.md)
+- [picollm/accelerated/speedrun.sh](./picollm/accelerated/speedrun.sh)
+- [prompts/real_chatbot_workflow/base_vs_chat_sft_prompts.md](./prompts/real_chatbot_workflow/base_vs_chat_sft_prompts.md)
 - [apps/vercel_ai_sdk_chat/README.md](./apps/vercel_ai_sdk_chat/README.md)
 - [apps/opentui_ai_sdk_chat/README.md](./apps/opentui_ai_sdk_chat/README.md)
 

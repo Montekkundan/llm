@@ -12,8 +12,8 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$REPO_ROOT"
 
 export OMP_NUM_THREADS=1
-export PICOLLM_ACCELERATED_BASE_DIR="${PICOLLM_ACCELERATED_BASE_DIR:-$REPO_ROOT/artifacts/picollm_accelerated}"
-mkdir -p "$PICOLLM_ACCELERATED_BASE_DIR"
+export PICOLLM_BASE_DIR="${PICOLLM_BASE_DIR:-$REPO_ROOT/artifacts/picollm}"
+mkdir -p "$PICOLLM_BASE_DIR"
 
 WANDB_RUN="${WANDB_RUN:-dummy}"
 export PYTHONUNBUFFERED=1
@@ -45,7 +45,7 @@ torchrun --standalone --nproc_per_node=8 -m picollm.accelerated.pretrain.train \
 torchrun --standalone --nproc_per_node=8 -m picollm.accelerated.pretrain.eval \
   --device-batch-size=16
 
-curl -L -o "$PICOLLM_ACCELERATED_BASE_DIR/identity_conversations.jsonl" \
+curl -L -o "$PICOLLM_BASE_DIR/identity_conversations.jsonl" \
   https://karpathy-public.s3.us-west-2.amazonaws.com/identity_conversations.jsonl
 
 torchrun --standalone --nproc_per_node=8 -m picollm.accelerated.chat.sft \

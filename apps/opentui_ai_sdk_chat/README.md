@@ -45,9 +45,8 @@ this app is a terminal chat client, not yet a full coding agent. It teaches the 
 Run the backend first:
 
 ```bash
-uv run python -m picollm.serve.chat_web \
-  --model Qwen/Qwen2.5-1.5B-Instruct \
-  --device auto
+uv run python -m picollm.accelerated.chat.web \
+  --source sft
 ```
 
 That exposes:
@@ -71,7 +70,7 @@ bun run dev
 ```bash
 PICOLLM_BASE_URL=http://127.0.0.1:8008/v1
 PICOLLM_API_KEY=local-demo-key
-PICOLLM_MODEL=Qwen/Qwen2.5-1.5B-Instruct
+PICOLLM_MODEL=picollm-chat
 ```
 
 ## Controls
@@ -82,5 +81,5 @@ PICOLLM_MODEL=Qwen/Qwen2.5-1.5B-Instruct
 ## Related course docs
 
 - [README.md](../../README.md)
-- [picollm/RUNBOOK.md](../../picollm/RUNBOOK.md)
+- [picollm/accelerated/README.md](../../picollm/accelerated/README.md)
 - [apps/vercel_ai_sdk_chat/README.md](../vercel_ai_sdk_chat/README.md)

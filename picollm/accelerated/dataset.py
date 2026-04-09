@@ -15,30 +15,29 @@ base_dir = get_base_dir()
 DATA_DIR = os.path.join(base_dir, "base_data_climbmix")
 
 
-def list_parquet_files(data_dir=None, warn_on_legacy=False):
-    """ Looks into a data dir and returns full paths to all parquet files. """
+def list_parquet_files(data_dir=None, show_missing_message=False):
+    """Look into the active data directory and return parquet shard paths."""
     data_dir = DATA_DIR if data_dir is None else data_dir
 
     if not os.path.exists(data_dir):
-        if warn_on_legacy:
+        if show_missing_message:
             print()
             print("=" * 80)
-            print("  WARNING: DATASET UPGRADE REQUIRED")
+            print("  DATASET NOT FOUND")
             print("=" * 80)
             print()
             print(f"  Could not find: {data_dir}")
             print()
-            print("  picoLLM accelerated training recently switched from FinewebEdu-100B to ClimbMix-400B.")
-            print("  Everyone who does `git pull` as of March 4, 2026 is expected to see this message.")
-            print("  To upgrade to the new ClimbMix-400B dataset, run these two commands:")
+            print("  This training path expects the ClimbMix parquet shards in the")
+            print("  canonical accelerated data directory.")
+            print("  Download them with:")
             print()
             print("    python -m picollm.accelerated.dataset -n 170")
             print("    python -m picollm.accelerated.pretrain.train_tokenizer")
             print()
-            print("  For now, falling back to your old FinewebEdu-100B dataset...")
             print("=" * 80)
             print()
-        data_dir = os.path.join(base_dir, "base_data")
+        return []
 
     parquet_files = sorted([
         f for f in os.listdir(data_dir)

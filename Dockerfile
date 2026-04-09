@@ -7,7 +7,6 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY course_tools ./course_tools
 COPY scripts ./scripts
-COPY main.py ./main.py
 
 RUN pip install --no-cache-dir uv && uv pip install --system .
 RUN python scripts/deployment/build_demo_checkpoint.py

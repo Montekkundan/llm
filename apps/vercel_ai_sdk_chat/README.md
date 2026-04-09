@@ -26,30 +26,13 @@ That split is important to understand:
 
 ## Backend requirement
 
-Run the `picollm` server first so this app has an OpenAI-compatible endpoint to call:
+Run the accelerated `picollm` server first so this app has an OpenAI-compatible endpoint to call:
 
 With your own from-scratch chatbot:
 
 ```bash
-uv run python -m picollm.serve.chat_web \
-  --model artifacts/picollm/chat-sft-run \
-  --device auto
-```
-
-Or with a model you pushed to the Hub:
-
-```bash
-uv run python -m picollm.serve.chat_web \
-  --model your-name/picollm-chat-sft \
-  --device auto
-```
-
-You can still use a public instruct model if you want:
-
-```bash
-uv run python -m picollm.serve.chat_web \
-  --model Qwen/Qwen2.5-1.5B-Instruct \
-  --device auto
+uv run python -m picollm.accelerated.chat.web \
+  --source sft
 ```
 
 That starts the backend at:
@@ -87,16 +70,10 @@ Use these in `.env.local`:
 ```bash
 PICOLLM_BASE_URL=http://127.0.0.1:8008/v1
 PICOLLM_API_KEY=local-demo-key
-PICOLLM_MODEL=artifacts/picollm/chat-sft-run
+PICOLLM_MODEL=picollm-chat
 ```
 
 If you deploy the model elsewhere, only `PICOLLM_BASE_URL` and possibly `PICOLLM_API_KEY` need to change.
-
-If you pushed the model to the Hub and serve it from there through `picollm`, use the Hub repo id instead:
-
-```bash
-PICOLLM_MODEL=your-name/picollm-chat-sft
-```
 
 ## What changed from the original template
 
@@ -134,5 +111,4 @@ That means the full project can look like this:
 ## Related course docs
 
 - [README.md](../../README.md)
-- [picollm/RUNBOOK.md](../../picollm/RUNBOOK.md)
-- [picollm/serve/README.md](../../picollm/serve/README.md)
+- [picollm/accelerated/README.md](../../picollm/accelerated/README.md)

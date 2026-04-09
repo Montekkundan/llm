@@ -70,9 +70,9 @@ def get_system_info():
     info['memory_gb'] = psutil.virtual_memory().total / (1024**3)
 
     info['user'] = os.environ.get('USER', 'unknown')
-    info['picollm_accelerated_base_dir'] = (
-        os.environ.get('PICOLLM_ACCELERATED_BASE_DIR')
-        or 'artifacts/picollm_accelerated'
+    info['picollm_base_dir'] = (
+        os.environ.get('PICOLLM_BASE_DIR')
+        or 'artifacts/picollm'
     )
     info['working_dir'] = os.getcwd()
 
@@ -194,8 +194,6 @@ EXPECTED_FILES = [
     "base-model-evaluation.md",
     "chat-sft.md",
     "chat-evaluation-sft.md",
-    "chat-rl.md",
-    "chat-evaluation-rl.md",
 ]
 chat_metrics = ["ARC-Easy", "ARC-Challenge", "MMLU", "GSM8K", "HumanEval", "ChatCORE"]
 
@@ -287,8 +285,6 @@ class Report:
                     final_metrics["base"] = extract(section, "CORE")
                 if file_name == "chat-evaluation-sft.md":
                     final_metrics["sft"] = extract(section, chat_metrics)
-                if file_name == "chat-evaluation-rl.md":
-                    final_metrics["rl"] = extract(section, "GSM8K") # RL only evals GSM8K
                 out_file.write(section)
                 out_file.write("\n")
             out_file.write("## Summary\n\n")
@@ -298,7 +294,7 @@ class Report:
             for stage_metrics in final_metrics.values():
                 all_metrics.update(stage_metrics.keys())
             all_metrics = sorted(all_metrics, key=lambda x: (x != "CORE", x == "ChatCORE", x))
-            stages = ["base", "sft", "rl"]
+            stages = ["base", "sft"]
             metric_width = 15
             value_width = 8
             header = f"| {'Metric'.ljust(metric_width)} |"

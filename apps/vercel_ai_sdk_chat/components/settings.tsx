@@ -135,7 +135,7 @@ export function Settings() {
               id="model-id"
               value={modelId}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setModelId(e.target.value)}
-              placeholder="Qwen/Qwen2.5-1.5B-Instruct"
+              placeholder="picollm-chat"
             />
           </div>
           <div className="grid gap-3">

@@ -25,7 +25,7 @@ assistant_start, assistant_end = tokenizer.encode_special("<|assistant_start|>")
 
 engine = Engine(model, tokenizer)
 
-print("\nNanoChat Interactive Mode")
+print("\npicoLLM Interactive Mode")
 print("-" * 50)
 print("Type 'quit' or 'exit' to end the conversation")
 print("Type 'clear' to start a new conversation")

@@ -9,9 +9,9 @@ from filelock import FileLock
 
 _DTYPE_MAP = {"bfloat16": torch.bfloat16, "float16": torch.float16, "float32": torch.float32}
 def _detect_compute_dtype():
-    env = os.environ.get("PICOLLM_ACCELERATED_DTYPE")
+    env = os.environ.get("PICOLLM_DTYPE")
     if env is not None:
-        return _DTYPE_MAP[env], f"set via PICOLLM_ACCELERATED_DTYPE={env}"
+        return _DTYPE_MAP[env], f"set via PICOLLM_DTYPE={env}"
     if torch.cuda.is_available():
         capability = torch.cuda.get_device_capability()
         if capability >= (8, 0):
@@ -61,9 +61,9 @@ def get_assets_dir():
 
 
 def get_base_dir():
-    base_dir = os.environ.get("PICOLLM_ACCELERATED_BASE_DIR")
+    base_dir = os.environ.get("PICOLLM_BASE_DIR")
     if not base_dir:
-        base_dir = str(get_repo_root() / "artifacts" / "picollm_accelerated")
+        base_dir = str(get_repo_root() / "artifacts" / "picollm")
     os.makedirs(base_dir, exist_ok=True)
     return base_dir
 

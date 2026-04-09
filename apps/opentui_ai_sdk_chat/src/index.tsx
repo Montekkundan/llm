@@ -19,7 +19,7 @@ const provider = createOpenAICompatible({
   apiKey: process.env.PICOLLM_API_KEY || "local-demo-key",
 });
 
-const modelId = process.env.PICOLLM_MODEL || "Qwen/Qwen2.5-1.5B-Instruct";
+const modelId = process.env.PICOLLM_MODEL || "picollm-chat";
 
 async function generateAssistantReply(history: ChatTurn[], onChunk: (text: string) => void) {
   const result = streamText({

@@ -24,7 +24,7 @@ export async function POST(req: Request) {
   });
 
   const result = streamText({
-    model: provider(modelId || process.env.PICOLLM_MODEL || 'Qwen/Qwen2.5-1.5B-Instruct'),
+    model: provider(modelId || process.env.PICOLLM_MODEL || 'picollm-chat'),
     messages: convertToModelMessages(messages),
     system:
       'You are a helpful assistant that can answer questions and help with tasks.',
