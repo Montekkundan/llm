@@ -379,17 +379,17 @@ class GPT(nn.Module):
             x = x - self.backout_lambda.to(x.dtype) * x_backout
         x = norm(x)
 
-        softcap = 15 # smoothly cap the logits to the range [-softcap, softcap]
+        softcap = 15.0 # smoothly cap the logits to the range [-softcap, softcap]
         logits = self.lm_head(x) # (B, T, padded_vocab_size) <- very big tensor, large amount of memory
         logits = logits[..., :self.config.vocab_size] # slice to remove padding
-        logits = logits.float() # switch to fp32 for logit softcap and loss computation
-        logits = softcap * torch.tanh(logits / softcap) # squash the logits
+        # Keep logits in compute dtype during training to avoid a second full-size fp32 allocation.
+        logits = logits.div_(softcap).tanh_().mul_(softcap)
 
         if targets is not None:
             loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-1, reduction=loss_reduction)
             return loss
         else:
-            return logits
+            return logits.float()
 
     @torch.inference_mode()
     def generate(self, tokens, max_tokens, temperature=1.0, top_k=None, seed=42):
