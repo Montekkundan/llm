@@ -20,6 +20,7 @@ export WANDB_ENTITY=your-wandb-entity
 export HF_TOKEN=...
 export PICOLLM_BASE_DIR=/abs/path/to/artifacts/picollm
 export PICOLLM_ACTIVATION_CHECKPOINTING=0
+export PICOLLM_PRETRAIN_ACTIVATION_CHECKPOINTING=1
 export PICOLLM_DEVICE_BATCH_SIZE=4
 export PICOLLM_TRAIN_LOSS_CHUNK_ROWS=4
 export HF_UPLOAD_REPO_ID=your-username/your-picollm-backup
@@ -31,7 +32,8 @@ Notes:
 - `WANDB_ENTITY` is required for any non-dummy W&B run in this repo.
 - `HF_TOKEN` is recommended for Hugging Face downloads and rate limits. Public datasets may still work without it.
 - Leave `PICOLLM_FLASH_IMPL` unset for the default fast path. On Hopper this will pick FA3 automatically.
-- `PICOLLM_ACTIVATION_CHECKPOINTING=0` keeps the speedrun on the current fast path.
+- `PICOLLM_ACTIVATION_CHECKPOINTING=0` keeps inference, eval, and SFT off the checkpointing path by default.
+- `PICOLLM_PRETRAIN_ACTIVATION_CHECKPOINTING=1` enables activation checkpointing only for base pretraining, which is the current memory-stable default.
 - `PICOLLM_DEVICE_BATCH_SIZE=4` is the current default for the fast H100 path.
 - `PICOLLM_TRAIN_LOSS_CHUNK_ROWS=4` reduces the LM-head loss projection peak memory.
 - `HF_UPLOAD_REPO_ID` is optional. If set, the speedrun uploads the final runtime artifacts to a Hugging Face model repo.
@@ -51,7 +53,7 @@ Web UI instead of CLI:
 bash picollm/accelerated/speedrun.sh web
 ```
 
-The script now targets the fast accelerated path by default: `FA3` auto when available, `FP8` on for pretraining, `device-batch-size=4`, auto total batch size, loss chunks of `4`, and activation checkpointing off. Quality still depends on the training recipe, total tokens, data mixture, and evaluation results.
+The script now targets the fast accelerated path by default: `FA3` auto when available, `FP8` on for pretraining, `device-batch-size=4`, auto total batch size, loss chunks of `4`, pretrain activation checkpointing on, and SFT/eval checkpointing off. Quality still depends on the training recipe, total tokens, data mixture, and evaluation results.
 
 ## Optional Hugging Face Backup
 

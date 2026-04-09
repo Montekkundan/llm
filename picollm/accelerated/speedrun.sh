@@ -15,6 +15,7 @@ export OMP_NUM_THREADS=1
 export PICOLLM_BASE_DIR="${PICOLLM_BASE_DIR:-$REPO_ROOT/artifacts/picollm}"
 PICOLLM_FLASH_IMPL="${PICOLLM_FLASH_IMPL-}"
 export PICOLLM_ACTIVATION_CHECKPOINTING="${PICOLLM_ACTIVATION_CHECKPOINTING:-0}"
+export PICOLLM_PRETRAIN_ACTIVATION_CHECKPOINTING="${PICOLLM_PRETRAIN_ACTIVATION_CHECKPOINTING:-1}"
 export PICOLLM_DEVICE_BATCH_SIZE="${PICOLLM_DEVICE_BATCH_SIZE:-4}"
 export PICOLLM_TRAIN_LOSS_CHUNK_ROWS="${PICOLLM_TRAIN_LOSS_CHUNK_ROWS:-4}"
 export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}"
@@ -151,6 +152,7 @@ python -m picollm.accelerated.pretrain.tokenizer_eval
 echo "Waiting for dataset download to complete..."
 wait "$DATASET_DOWNLOAD_PID"
 
+PICOLLM_ACTIVATION_CHECKPOINTING="$PICOLLM_PRETRAIN_ACTIVATION_CHECKPOINTING" \
 torchrun --standalone --nproc_per_node=8 -m picollm.accelerated.pretrain.train -- \
   --depth=24 \
   --target-param-data-ratio=8 \

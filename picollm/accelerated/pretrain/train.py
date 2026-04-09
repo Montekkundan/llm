@@ -205,6 +205,8 @@ def disable_fp8(model):
 
 
 orig_model = model # original, uncompiled model, for saving raw model state_dict and for inference/evaluation (because the shapes may change shape)
+if orig_model.use_activation_checkpointing:
+    print0("Activation checkpointing enabled for pretraining")
 compile_disabled = os.environ.get("TORCH_COMPILE_DISABLE") == "1"
 if using_fa3 and not compile_disabled:
     print0("Disabling torch.compile for model forward/backward because the current FA3 stack is not torch.compile-safe.")
