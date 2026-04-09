@@ -27,9 +27,9 @@ Notes:
 
 - `WANDB_ENTITY` is required for any non-dummy W&B run in this repo.
 - `HF_TOKEN` is recommended for Hugging Face downloads and rate limits. Public datasets may still work without it.
-- `speedrun.sh` is the single optimized reference script. It clears stale flash/compile overrides and runs the Hopper-first path automatically.
+- `speedrun.sh` is the single reference script. It clears stale flash/compile overrides and runs the accelerated path automatically when the environment supports it.
 - The reference speedrun uses auto FA3 selection, pretrain `--fp8`, `device-batch-size=16`, auto total batch size, and the full eval path instead of the earlier bounded proof recipe.
-- Rebuild the environment with `uv sync --extra gpu` after pulling, because picoLLM now pins the same `torch==2.9.1` runtime that nanochat uses for this path.
+- Rebuild the environment with `uv sync --extra gpu` after pulling, because picoLLM now pins `torch==2.9.1` for this runtime path.
 - `HF_UPLOAD_REPO_ID` is optional. If set, the speedrun uploads the final runtime artifacts to a Hugging Face model repo.
 - `HF_UPLOAD_PRIVATE=1` keeps that repo private by default.
 
