@@ -1,5 +1,6 @@
 from functools import partial
 from dataclasses import dataclass
+import os
 
 import torch
 import torch.nn as nn
@@ -9,6 +10,8 @@ from picollm.accelerated.common import get_dist_info, print0, COMPUTE_DTYPE
 from picollm.accelerated.optim import MuonAdamW, DistMuonAdamW
 
 from picollm.accelerated.flash_attention import flash_attn
+
+TRAIN_LOSS_CHUNK_ROWS = int(os.environ.get("PICOLLM_TRAIN_LOSS_CHUNK_ROWS", "128"))
 
 @dataclass
 class GPTConfig:
@@ -29,7 +32,20 @@ class Linear(nn.Linear):
     Replaces autocast: master weights stay fp32 for optimizer precision,
     but matmuls run in the activation dtype (typically bf16 from embeddings)."""
     def forward(self, x):
-        return F.linear(x, self.weight.to(dtype=x.dtype))
+        return linear_in_compute_dtype(x, self.weight, self.bias)
+
+
+def linear_in_compute_dtype(x, weight, bias=None):
+    if weight.dtype == x.dtype and (bias is None or bias.dtype == x.dtype):
+        return F.linear(x, weight, bias)
+
+    if x.is_cuda and x.dtype in (torch.bfloat16, torch.float16):
+        with torch.amp.autocast(device_type="cuda", dtype=x.dtype):
+            return F.linear(x, weight, bias)
+
+    if bias is not None and bias.dtype != x.dtype:
+        bias = bias.to(dtype=x.dtype)
+    return F.linear(x, weight.to(dtype=x.dtype), bias)
 
 
 def has_ve(layer_idx, n_layer):
@@ -379,13 +395,41 @@ class GPT(nn.Module):
             x = x - self.backout_lambda.to(x.dtype) * x_backout
         x = norm(x)
 
-        logits = self.lm_head(x) # (B, T, padded_vocab_size) <- very big tensor, large amount of memory
-        logits = logits[..., :self.config.vocab_size] # slice to remove padding
-
         if targets is not None:
-            loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-1, reduction=loss_reduction)
-            return loss
+            x_flat = x.reshape(-1, x.size(-1))
+            targets_flat = targets.reshape(-1)
+
+            if loss_reduction == 'sum':
+                total_loss = x_flat.new_zeros(())
+                for start in range(0, x_flat.size(0), TRAIN_LOSS_CHUNK_ROWS):
+                    end = start + TRAIN_LOSS_CHUNK_ROWS
+                    logits = linear_in_compute_dtype(x_flat[start:end], self.lm_head.weight)[..., :self.config.vocab_size]
+                    total_loss = total_loss + F.cross_entropy(
+                        logits.float(),
+                        targets_flat[start:end],
+                        ignore_index=-1,
+                        reduction='sum',
+                    ).to(total_loss.dtype)
+                return total_loss
+
+            if loss_reduction != 'mean':
+                raise ValueError(f"Unsupported loss_reduction: {loss_reduction}")
+
+            total_loss = x_flat.new_zeros(())
+            total_tokens = targets_flat.ne(-1).sum()
+            for start in range(0, x_flat.size(0), TRAIN_LOSS_CHUNK_ROWS):
+                end = start + TRAIN_LOSS_CHUNK_ROWS
+                logits = linear_in_compute_dtype(x_flat[start:end], self.lm_head.weight)[..., :self.config.vocab_size]
+                total_loss = total_loss + F.cross_entropy(
+                    logits.float(),
+                    targets_flat[start:end],
+                    ignore_index=-1,
+                    reduction='sum',
+                ).to(total_loss.dtype)
+            return total_loss / total_tokens.clamp_min(1).to(total_loss.dtype)
         else:
+            logits = self.lm_head(x) # (B, T, padded_vocab_size) <- very big tensor, large amount of memory
+            logits = logits[..., :self.config.vocab_size] # slice to remove padding
             softcap = 15.0 # smoothly cap the logits to the range [-softcap, softcap] during generation/eval only
             logits = torch.tanh(logits / softcap) * softcap
             return logits.float()

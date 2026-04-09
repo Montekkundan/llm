@@ -225,13 +225,22 @@ target_tokens = int(args.target_param_data_ratio * num_scaling_params) # optimal
 d12_ref = build_model_meta(12) # creates the model on meta device
 D_REF = args.target_param_data_ratio * get_scaling_params(d12_ref) # compute-optimal d12 training horizon in tokens (measured empirically)
 B_REF = 2**19 # optimal batch size at d12 ~= 524,288 tokens (measured empirically)
+tokens_per_fwdbwd = args.device_batch_size * args.max_seq_len
+world_tokens_per_fwdbwd = tokens_per_fwdbwd * ddp_world_size
 
 total_batch_size = args.total_batch_size # user-provided override is possible
 if total_batch_size == -1:
-    batch_size_ratio = target_tokens / D_REF
-    predicted_batch_size = B_REF * batch_size_ratio ** 0.383
-    total_batch_size = 2 ** round(math.log2(predicted_batch_size)) # clamp to nearest power of 2 for efficiency
-    print0(f"Auto-computed optimal batch size: {total_batch_size:,} tokens")
+    if args.num_iterations > 0:
+        total_batch_size = min(B_REF, 4 * world_tokens_per_fwdbwd)
+        print0(
+            "Using conservative total batch size for explicit step-count run: "
+            f"{total_batch_size:,} tokens"
+        )
+    else:
+        batch_size_ratio = target_tokens / D_REF
+        predicted_batch_size = B_REF * batch_size_ratio ** 0.383
+        total_batch_size = 2 ** round(math.log2(predicted_batch_size)) # clamp to nearest power of 2 for efficiency
+        print0(f"Auto-computed optimal batch size: {total_batch_size:,} tokens")
 
 batch_lr_scale = 1.0
 batch_ratio = total_batch_size / B_REF # B/B_ref
@@ -323,8 +332,6 @@ else:
     smooth_train_loss = loop_state["smooth_train_loss"]
     total_training_time = loop_state["total_training_time"]
 
-tokens_per_fwdbwd = args.device_batch_size * args.max_seq_len # tokens per iteration for a single rank
-world_tokens_per_fwdbwd = tokens_per_fwdbwd * ddp_world_size # total tokens per iteration for all ranks
 assert total_batch_size % world_tokens_per_fwdbwd == 0
 grad_accum_steps = total_batch_size // world_tokens_per_fwdbwd
 print0(f"Tokens / micro-batch / rank: {args.device_batch_size} x {args.max_seq_len} = {tokens_per_fwdbwd:,}")
