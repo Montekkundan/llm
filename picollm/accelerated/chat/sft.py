@@ -68,6 +68,9 @@ if not HAS_FA3:
     print0("WARNING: Flash Attention 3 not available, using PyTorch SDPA fallback. Training will be less efficient.")
 
 model, tokenizer, meta = load_model("base", device, phase="train", model_tag=args.model_tag, step=args.model_step)
+if getattr(model, "use_activation_checkpointing", False):
+    model.use_activation_checkpointing = False
+    print0("Disabling activation checkpointing for SFT; checkpoint recomputation is unstable on this stack.")
 
 pretrain_user_config = meta.get("user_config", {})
 for name, fallback, source in [
@@ -421,9 +424,10 @@ while True:
 
     if step == 1:
         gc.collect() # manually collect a lot of garbage from setup
-        gc.freeze() # freeze all currently surviving objects and exclude them from GC
-        gc.disable() # disable GC entirely except:
-    elif step % 5000 == 0: # every 5000 steps...
+        if ddp_world_size == 1:
+            gc.freeze() # fine for the single-process path, avoids repeated GC scans
+            gc.disable()
+    elif step % 100 == 0: # keep GC on for distributed training; comm futures may form cycles
         gc.collect() # manually collect, just to be safe for very long runs
 
 print0(f"Peak memory usage: {get_max_memory() / 1024 / 1024:.2f}MiB")

@@ -164,6 +164,7 @@ class GPT(nn.Module):
         self.smear_gate = Linear(24, 1, bias=False)
         self.smear_lambda = nn.Parameter(torch.zeros(1))
         self.backout_lambda = nn.Parameter(0.2 * torch.ones(1))
+        self.use_activation_checkpointing = USE_ACTIVATION_CHECKPOINTING
         head_dim = config.n_embd // config.n_head
         kv_dim = config.n_kv_head * head_dim
         self.value_embeds = nn.ModuleDict({str(i): nn.Embedding(padded_vocab_size, kv_dim) for i in range(config.n_layer) if has_ve(i, config.n_layer)})
@@ -390,7 +391,7 @@ class GPT(nn.Module):
         for i, block in enumerate(self.transformer.h):
             x = self.resid_lambdas[i] * x + self.x0_lambdas[i] * x0
             ve = self.value_embeds[str(i)](idx).to(x.dtype) if str(i) in self.value_embeds else None
-            if self.training and kv_cache is None and USE_ACTIVATION_CHECKPOINTING:
+            if self.training and kv_cache is None and self.use_activation_checkpointing:
                 x = checkpoint(
                     lambda x_in, ve_in: block(x_in, ve_in, cos_sin, self.window_sizes[i], None),
                     x,
