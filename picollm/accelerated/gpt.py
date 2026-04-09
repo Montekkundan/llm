@@ -12,7 +12,7 @@ from picollm.accelerated.optim import MuonAdamW, DistMuonAdamW
 
 from picollm.accelerated.flash_attention import flash_attn
 
-TRAIN_LOSS_CHUNK_ROWS = int(os.environ.get("PICOLLM_TRAIN_LOSS_CHUNK_ROWS", "32"))
+TRAIN_LOSS_CHUNK_ROWS = int(os.environ.get("PICOLLM_TRAIN_LOSS_CHUNK_ROWS", "8"))
 # Default to the current picoLLM fast path unless explicitly overridden.
 USE_ACTIVATION_CHECKPOINTING = os.environ.get("PICOLLM_ACTIVATION_CHECKPOINTING", "0") != "0"
 

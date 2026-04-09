@@ -15,6 +15,8 @@ export OMP_NUM_THREADS=1
 export PICOLLM_BASE_DIR="${PICOLLM_BASE_DIR:-$REPO_ROOT/artifacts/picollm}"
 PICOLLM_FLASH_IMPL="${PICOLLM_FLASH_IMPL-}"
 export PICOLLM_ACTIVATION_CHECKPOINTING="${PICOLLM_ACTIVATION_CHECKPOINTING:-0}"
+export PICOLLM_DEVICE_BATCH_SIZE="${PICOLLM_DEVICE_BATCH_SIZE:-8}"
+export PICOLLM_TRAIN_LOSS_CHUNK_ROWS="${PICOLLM_TRAIN_LOSS_CHUNK_ROWS:-8}"
 export HF_HUB_VERBOSITY="${HF_HUB_VERBOSITY:-warning}"
 mkdir -p "$PICOLLM_BASE_DIR"
 export PICOLLM_FLASH_IMPL
@@ -151,19 +153,19 @@ wait "$DATASET_DOWNLOAD_PID"
 torchrun --standalone --nproc_per_node=8 -m picollm.accelerated.pretrain.train -- \
   --depth=24 \
   --target-param-data-ratio=8 \
-  --device-batch-size=16 \
+  --device-batch-size="$PICOLLM_DEVICE_BATCH_SIZE" \
   --fp8 \
   "${WANDB_ARGS[@]}" \
   --run="$WANDB_RUN"
 
 torchrun --standalone --nproc_per_node=8 -m picollm.accelerated.pretrain.eval -- \
-  --device-batch-size=16
+  --device-batch-size="$PICOLLM_DEVICE_BATCH_SIZE"
 
 curl -L -o "$PICOLLM_BASE_DIR/identity_conversations.jsonl" \
   https://karpathy-public.s3.us-west-2.amazonaws.com/identity_conversations.jsonl
 
 torchrun --standalone --nproc_per_node=8 -m picollm.accelerated.chat.sft -- \
-  --device-batch-size=16 \
+  --device-batch-size="$PICOLLM_DEVICE_BATCH_SIZE" \
   "${WANDB_ARGS[@]}" \
   --run="$WANDB_RUN"
 
