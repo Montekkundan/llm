@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 
 from picollm.common import generate_reply, load_generation_bundle
-from picollm.common.chat import build_prompt
+from picollm.common.conversation import encode_messages_for_generation
 
 from .compare_checkpoints import DEFAULT_PROMPT_SUITE, load_prompt_suite, normalize_messages
 
@@ -46,8 +46,7 @@ def main() -> None:
 
     for prompt_row in prompt_suite:
         messages = normalize_messages(prompt_row)
-        prompt_text = build_prompt(bundle.tokenizer, messages, add_generation_prompt=True)
-        prompt_tokens = len(bundle.tokenizer(prompt_text)["input_ids"])
+        prompt_tokens = len(encode_messages_for_generation(bundle.tokenizer, messages))
 
         started = time.perf_counter()
         response = generate_reply(

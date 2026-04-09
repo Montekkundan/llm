@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from picollm.common.conversation import STRUCTURED_ROLE_TOKENS
+
 
 def _extract_message_text(item: object) -> tuple[str, str] | None:
     if not isinstance(item, dict):
@@ -21,7 +23,8 @@ def normalize_text(value: object, alternating_chat_roles: bool) -> str:
                 if extracted is None:
                     continue
                 role, content = extracted
-                rendered.append(f"<|{role}|> {content}")
+                start_token, end_token = STRUCTURED_ROLE_TOKENS[role]
+                rendered.append(f"{start_token}{content}{end_token}")
             return "\n".join(rendered)
 
         parts = [str(item).strip() for item in value if str(item).strip()]
@@ -30,8 +33,9 @@ def normalize_text(value: object, alternating_chat_roles: bool) -> str:
         if alternating_chat_roles:
             rendered = []
             for index, part in enumerate(parts):
-                role = "<|user|>" if index % 2 == 0 else "<|assistant|>"
-                rendered.append(f"{role} {part}")
+                role = "user" if index % 2 == 0 else "assistant"
+                start_token, end_token = STRUCTURED_ROLE_TOKENS[role]
+                rendered.append(f"{start_token}{part}{end_token}")
             return "\n".join(rendered)
         return "\n".join(parts)
     return str(value).strip()

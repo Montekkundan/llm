@@ -58,7 +58,7 @@ def load_generation_bundle(
         model_kwargs["quantization_config"] = quant_config
         model_kwargs["device_map"] = "auto"
     else:
-        model_kwargs["dtype"] = torch_dtype
+        model_kwargs["torch_dtype"] = torch_dtype
         # Keep weights materialized on CPU before moving them to the target device.
         # Some newer Transformers loading paths can leave missing/tied weights on
         # meta tensors under low-memory loading, which then breaks `.to(...)`.

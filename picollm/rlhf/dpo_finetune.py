@@ -38,7 +38,7 @@ def main() -> None:
 
     model = AutoModelForCausalLM.from_pretrained(
         args.model,
-        dtype=default_dtype_for_device(device),
+        torch_dtype=default_dtype_for_device(device),
     )
 
     dataset = (
@@ -80,4 +80,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

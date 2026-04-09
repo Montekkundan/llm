@@ -2,13 +2,18 @@ from __future__ import annotations
 
 import argparse
 
+import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, DataCollatorForSeq2Seq, Trainer, TrainingArguments
 from trl import SFTConfig, SFTTrainer
 
 from picollm.common.device import default_dtype_for_device, resolve_device
 from picollm.common.training_preview import SampleGenerationCallback, default_chat_preview_items
 from picollm.common.telemetry import ensure_reporter_ready, trainer_report_to
-from picollm.pretrain_cloud.data import load_text_dataset, load_tokenized_chat_dataset
+from picollm.pretrain_cloud.data import (
+    load_nanochat_like_sft_dataset,
+    load_text_dataset,
+    load_tokenized_chat_dataset,
+)
 
 
 def main() -> None:
@@ -23,6 +28,14 @@ def main() -> None:
     parser.add_argument("--alternating-chat-roles", action="store_true")
     parser.add_argument("--streaming", action="store_true")
     parser.add_argument("--device", default="auto")
+    parser.add_argument("--mixture", choices=["none", "nanochat-lite"], default="none")
+    parser.add_argument("--smoltalk-epochs", type=int, default=1)
+    parser.add_argument("--everyday-epochs", type=int, default=1)
+    parser.add_argument("--identity-epochs", type=int, default=2)
+    parser.add_argument("--mmlu-epochs", type=int, default=1)
+    parser.add_argument("--gsm8k-epochs", type=int, default=1)
+    parser.add_argument("--simple-spelling-size", type=int, default=20000)
+    parser.add_argument("--spelling-bee-size", type=int, default=8000)
     parser.add_argument("--batch-size", type=int, default=2)
     parser.add_argument("--grad-accum", type=int, default=16)
     parser.add_argument("--learning-rate", type=float, default=2e-5)
@@ -31,6 +44,10 @@ def main() -> None:
     parser.add_argument("--logging-steps", type=int, default=10)
     parser.add_argument("--save-steps", type=int, default=500)
     parser.add_argument("--save-total-limit", type=int, default=None)
+    parser.add_argument("--optimizer", choices=["auto", "adamw_torch", "adamw_torch_fused"], default="auto")
+    parser.add_argument("--lr-scheduler-type", default="cosine")
+    parser.add_argument("--dataloader-num-workers", type=int, default=0)
+    parser.add_argument("--torch-compile", action="store_true")
     parser.add_argument("--resume-from-checkpoint", default=None)
     parser.add_argument("--preview-every-steps", type=int, default=0)
     parser.add_argument("--preview-max-new-tokens", type=int, default=96)
@@ -45,15 +62,34 @@ def main() -> None:
     if tokenizer.pad_token is None and tokenizer.eos_token is not None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    use_tokenized_chat = bool(args.dataset_name and args.text_column == "messages" and not args.text_file)
+    use_tokenized_chat = bool(
+        args.mixture != "none"
+        or (args.dataset_name and args.text_column == "messages" and not args.text_file)
+    )
     model = AutoModelForCausalLM.from_pretrained(
         args.model,
-        dtype=default_dtype_for_device(device),
+        torch_dtype=default_dtype_for_device(device),
     )
     if tokenizer.pad_token_id is not None:
         model.config.pad_token_id = tokenizer.pad_token_id
+    resolved_optimizer = args.optimizer
+    if resolved_optimizer == "auto":
+        resolved_optimizer = "adamw_torch_fused" if torch.cuda.is_available() else "adamw_torch"
 
-    if use_tokenized_chat:
+    if args.mixture == "nanochat-lite":
+        max_length = getattr(model.config, "n_positions", None) or getattr(model.config, "max_position_embeddings", None)
+        dataset = load_nanochat_like_sft_dataset(
+            tokenizer,
+            max_length=int(max_length) if max_length is not None else None,
+            smoltalk_epochs=args.smoltalk_epochs,
+            everyday_epochs=args.everyday_epochs,
+            identity_epochs=args.identity_epochs,
+            mmlu_epochs=args.mmlu_epochs,
+            gsm8k_epochs=args.gsm8k_epochs,
+            simple_spelling_size=args.simple_spelling_size,
+            spelling_bee_size=args.spelling_bee_size,
+        )
+    elif use_tokenized_chat:
         max_length = getattr(model.config, "n_positions", None) or getattr(model.config, "max_position_embeddings", None)
         dataset = load_tokenized_chat_dataset(
             dataset_name=args.dataset_name,
@@ -92,6 +128,10 @@ def main() -> None:
             remove_unused_columns=False,
             ddp_find_unused_parameters=False,
             save_only_model=True,
+            optim=resolved_optimizer,
+            lr_scheduler_type=args.lr_scheduler_type,
+            dataloader_num_workers=args.dataloader_num_workers,
+            torch_compile=args.torch_compile,
         )
         trainer = Trainer(
             model=model,
@@ -123,6 +163,10 @@ def main() -> None:
             remove_unused_columns=False,
             ddp_find_unused_parameters=False,
             save_only_model=True,
+            optim=resolved_optimizer,
+            lr_scheduler_type=args.lr_scheduler_type,
+            dataloader_num_workers=args.dataloader_num_workers,
+            torch_compile=args.torch_compile,
         )
         trainer = SFTTrainer(
             model=model,
