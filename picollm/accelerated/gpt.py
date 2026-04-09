@@ -411,11 +411,18 @@ class GPT(nn.Module):
             x_flat = x.reshape(-1, x.size(-1))
             targets_flat = targets.reshape(-1)
 
+            # Keep the training loss projection in fp32 to avoid allocating a full
+            # bf16 copy of lm_head.weight inside Linear.forward. For this model,
+            # that implicit cast costs ~96 MiB and is enough to OOM near the
+            # memory ceiling on H100s.
+            def lm_head_loss_logits(x_chunk):
+                return F.linear(x_chunk.float(), self.lm_head.weight, self.lm_head.bias)[..., :self.config.vocab_size]
+
             if loss_reduction == 'sum':
                 total_loss = x_flat.new_zeros(())
                 for start in range(0, x_flat.size(0), TRAIN_LOSS_CHUNK_ROWS):
                     end = start + TRAIN_LOSS_CHUNK_ROWS
-                    logits = self.lm_head(x_flat[start:end])[..., :self.config.vocab_size]
+                    logits = lm_head_loss_logits(x_flat[start:end])
                     total_loss = total_loss + F.cross_entropy(
                         logits,
                         targets_flat[start:end],
@@ -428,7 +435,7 @@ class GPT(nn.Module):
                 loss_chunks = []
                 for start in range(0, x_flat.size(0), TRAIN_LOSS_CHUNK_ROWS):
                     end = start + TRAIN_LOSS_CHUNK_ROWS
-                    logits = self.lm_head(x_flat[start:end])[..., :self.config.vocab_size]
+                    logits = lm_head_loss_logits(x_flat[start:end])
                     loss_chunks.append(F.cross_entropy(
                         logits,
                         targets_flat[start:end],
@@ -444,7 +451,7 @@ class GPT(nn.Module):
             total_tokens = targets_flat.ne(-1).sum()
             for start in range(0, x_flat.size(0), TRAIN_LOSS_CHUNK_ROWS):
                 end = start + TRAIN_LOSS_CHUNK_ROWS
-                logits = self.lm_head(x_flat[start:end])[..., :self.config.vocab_size]
+                logits = lm_head_loss_logits(x_flat[start:end])
                 total_loss = total_loss + F.cross_entropy(
                     logits,
                     targets_flat[start:end],
