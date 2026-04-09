@@ -383,7 +383,7 @@ class GPT(nn.Module):
         logits = self.lm_head(x) # (B, T, padded_vocab_size) <- very big tensor, large amount of memory
         logits = logits[..., :self.config.vocab_size] # slice to remove padding
         # Keep logits in compute dtype during training to avoid a second full-size fp32 allocation.
-        logits = logits.div_(softcap).tanh_().mul_(softcap)
+        logits = torch.tanh(logits / softcap) * softcap
 
         if targets is not None:
             loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-1, reduction=loss_reduction)
