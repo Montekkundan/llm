@@ -4,6 +4,7 @@ import argparse
 from itertools import chain
 
 from transformers import (
+    AutoModelForCausalLM,
     AutoTokenizer,
     DataCollatorForLanguageModeling,
     GPT2Config,
@@ -43,6 +44,11 @@ def main() -> None:
     parser.add_argument("--layers", type=int, default=8)
     parser.add_argument("--heads", type=int, default=8)
     parser.add_argument("--hidden-size", type=int, default=512)
+    parser.add_argument(
+        "--init-model",
+        default=None,
+        help="Optional checkpoint to continue base pretraining from instead of initializing fresh GPT weights.",
+    )
     parser.add_argument("--batch-size", type=int, default=2)
     parser.add_argument("--grad-accum", type=int, default=16)
     parser.add_argument("--learning-rate", type=float, default=3e-4)
@@ -106,17 +112,40 @@ def main() -> None:
     packed_remove_columns = _dataset_columns(tokenized)
     tokenized = tokenized.map(group_texts, batched=True, remove_columns=packed_remove_columns)
     vocab_size = args.vocab_size or tokenizer.vocab_size
-    config = GPT2Config(
-        vocab_size=vocab_size,
-        n_positions=args.block_size,
-        n_ctx=args.block_size,
-        n_embd=args.hidden_size,
-        n_layer=args.layers,
-        n_head=args.heads,
-        bos_token_id=tokenizer.bos_token_id,
-        eos_token_id=tokenizer.eos_token_id,
-    )
-    model = GPT2LMHeadModel(config)
+    if args.init_model:
+        model = AutoModelForCausalLM.from_pretrained(args.init_model)
+        model_vocab_size = int(getattr(model.config, "vocab_size", vocab_size))
+        if model_vocab_size != vocab_size:
+            raise SystemExit(
+                "The tokenizer vocabulary does not match the init-model checkpoint. "
+                f"tokenizer vocab_size={vocab_size}, init-model vocab_size={model_vocab_size}."
+            )
+        max_positions = (
+            getattr(model.config, "n_positions", None)
+            or getattr(model.config, "max_position_embeddings", None)
+            or args.block_size
+        )
+        if int(max_positions) != args.block_size:
+            raise SystemExit(
+                "The requested block size does not match the init-model checkpoint. "
+                f"block_size={args.block_size}, init-model max_positions={int(max_positions)}."
+            )
+        model.config.bos_token_id = tokenizer.bos_token_id
+        model.config.eos_token_id = tokenizer.eos_token_id
+        if tokenizer.pad_token_id is not None:
+            model.config.pad_token_id = tokenizer.pad_token_id
+    else:
+        config = GPT2Config(
+            vocab_size=vocab_size,
+            n_positions=args.block_size,
+            n_ctx=args.block_size,
+            n_embd=args.hidden_size,
+            n_layer=args.layers,
+            n_head=args.heads,
+            bos_token_id=tokenizer.bos_token_id,
+            eos_token_id=tokenizer.eos_token_id,
+        )
+        model = GPT2LMHeadModel(config)
     collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
     training_args = TrainingArguments(
         output_dir=args.output_dir,
