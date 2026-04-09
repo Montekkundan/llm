@@ -151,7 +151,9 @@ def evaluate_example(idx, model, tokenizer, data, device, task_meta):
     if num_fewshot > 0:
         rng = random.Random(1234 + idx)
         available_indices = [i for i in range(len(data)) if i != idx]
-        fewshot_indices = rng.sample(available_indices, num_fewshot)
+        # Small proof runs may cap the dataset below the task's nominal k-shot count.
+        fewshot_k = min(num_fewshot, len(available_indices))
+        fewshot_indices = rng.sample(available_indices, fewshot_k)
         fewshot_examples = [data[i] for i in fewshot_indices]
 
     if task_type == 'multiple_choice':
