@@ -12,7 +12,7 @@ from picollm.accelerated.optim import MuonAdamW, DistMuonAdamW
 
 from picollm.accelerated.flash_attention import flash_attn
 
-TRAIN_LOSS_CHUNK_ROWS = int(os.environ.get("PICOLLM_TRAIN_LOSS_CHUNK_ROWS", "8"))
+TRAIN_LOSS_CHUNK_ROWS = int(os.environ.get("PICOLLM_TRAIN_LOSS_CHUNK_ROWS", "4"))
 # Default to the current picoLLM fast path unless explicitly overridden.
 USE_ACTIVATION_CHECKPOINTING = os.environ.get("PICOLLM_ACTIVATION_CHECKPOINTING", "0") != "0"
 
@@ -415,7 +415,7 @@ class GPT(nn.Module):
                 total_loss = x_flat.new_zeros(())
                 for start in range(0, x_flat.size(0), TRAIN_LOSS_CHUNK_ROWS):
                     end = start + TRAIN_LOSS_CHUNK_ROWS
-                    logits = F.linear(x_flat[start:end].float(), self.lm_head.weight)[..., :self.config.vocab_size]
+                    logits = self.lm_head(x_flat[start:end])[..., :self.config.vocab_size]
                     total_loss = total_loss + F.cross_entropy(
                         logits,
                         targets_flat[start:end],
@@ -428,7 +428,7 @@ class GPT(nn.Module):
                 loss_chunks = []
                 for start in range(0, x_flat.size(0), TRAIN_LOSS_CHUNK_ROWS):
                     end = start + TRAIN_LOSS_CHUNK_ROWS
-                    logits = F.linear(x_flat[start:end].float(), self.lm_head.weight)[..., :self.config.vocab_size]
+                    logits = self.lm_head(x_flat[start:end])[..., :self.config.vocab_size]
                     loss_chunks.append(F.cross_entropy(
                         logits,
                         targets_flat[start:end],
@@ -444,7 +444,7 @@ class GPT(nn.Module):
             total_tokens = targets_flat.ne(-1).sum()
             for start in range(0, x_flat.size(0), TRAIN_LOSS_CHUNK_ROWS):
                 end = start + TRAIN_LOSS_CHUNK_ROWS
-                logits = F.linear(x_flat[start:end].float(), self.lm_head.weight)[..., :self.config.vocab_size]
+                logits = self.lm_head(x_flat[start:end])[..., :self.config.vocab_size]
                 total_loss = total_loss + F.cross_entropy(
                     logits,
                     targets_flat[start:end],
