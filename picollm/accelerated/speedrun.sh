@@ -13,33 +13,15 @@ cd "$REPO_ROOT"
 
 export OMP_NUM_THREADS=1
 export PICOLLM_BASE_DIR="${PICOLLM_BASE_DIR:-$REPO_ROOT/artifacts/picollm}"
-if [[ "${PICOLLM_STABLE_FLASH_DEFAULT:-1}" == "1" ]]; then
-  export PICOLLM_FLASH_IMPL="sdpa"
-  export PICOLLM_ACTIVATION_CHECKPOINTING="0"
-  export PICOLLM_PRETRAIN_ACTIVATION_CHECKPOINTING="0"
-  export PICOLLM_ENABLE_FP8="0"
-  export PICOLLM_DEVICE_BATCH_SIZE="1"
-  export PICOLLM_TOTAL_BATCH_SIZE="65536"
-  export PICOLLM_TRAIN_LOSS_CHUNK_ROWS="4"
-  export PICOLLM_PRETRAIN_EVAL_MODES="sample,core"
-  export PICOLLM_PRETRAIN_MAX_PER_TASK="8"
-  export PICOLLM_CHAT_EVAL_MAX_PROBLEMS="8"
-  export PICOLLM_CHAT_EVAL_BATCH_SIZE="8"
-else
-  if [[ -n "${PICOLLM_FLASH_IMPL-}" ]]; then
-    export PICOLLM_FLASH_IMPL
-  fi
-  export PICOLLM_ACTIVATION_CHECKPOINTING="${PICOLLM_ACTIVATION_CHECKPOINTING:-0}"
-  export PICOLLM_PRETRAIN_ACTIVATION_CHECKPOINTING="${PICOLLM_PRETRAIN_ACTIVATION_CHECKPOINTING:-0}"
-  export PICOLLM_ENABLE_FP8="${PICOLLM_ENABLE_FP8:-0}"
-  export PICOLLM_DEVICE_BATCH_SIZE="${PICOLLM_DEVICE_BATCH_SIZE:-1}"
-  export PICOLLM_TOTAL_BATCH_SIZE="${PICOLLM_TOTAL_BATCH_SIZE:-65536}"
-  export PICOLLM_TRAIN_LOSS_CHUNK_ROWS="${PICOLLM_TRAIN_LOSS_CHUNK_ROWS:-4}"
-  export PICOLLM_PRETRAIN_EVAL_MODES="${PICOLLM_PRETRAIN_EVAL_MODES:-sample,core}"
-  export PICOLLM_PRETRAIN_MAX_PER_TASK="${PICOLLM_PRETRAIN_MAX_PER_TASK:-8}"
-  export PICOLLM_CHAT_EVAL_MAX_PROBLEMS="${PICOLLM_CHAT_EVAL_MAX_PROBLEMS:-8}"
-  export PICOLLM_CHAT_EVAL_BATCH_SIZE="${PICOLLM_CHAT_EVAL_BATCH_SIZE:-8}"
-fi
+export PICOLLM_FLASH_IMPL="sdpa"
+export PICOLLM_ACTIVATION_CHECKPOINTING="0"
+export PICOLLM_DEVICE_BATCH_SIZE="1"
+export PICOLLM_TOTAL_BATCH_SIZE="65536"
+export PICOLLM_TRAIN_LOSS_CHUNK_ROWS="4"
+export PICOLLM_PRETRAIN_EVAL_MODES="sample,core"
+export PICOLLM_PRETRAIN_MAX_PER_TASK="8"
+export PICOLLM_CHAT_EVAL_MAX_PROBLEMS="8"
+export PICOLLM_CHAT_EVAL_BATCH_SIZE="8"
 export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}"
 export HF_HUB_VERBOSITY="${HF_HUB_VERBOSITY:-warning}"
 mkdir -p "$PICOLLM_BASE_DIR"
@@ -62,11 +44,6 @@ fi
 
 if [[ -z "${HF_TOKEN:-}" ]]; then
   echo "HF_TOKEN is not set. Public dataset downloads may still work, but authenticated Hub access is recommended." >&2
-fi
-
-PRETRAIN_EXTRA_ARGS=()
-if [[ "$PICOLLM_ENABLE_FP8" == "1" || "$PICOLLM_ENABLE_FP8" == "true" ]]; then
-  PRETRAIN_EXTRA_ARGS+=(--fp8)
 fi
 
 upload_to_hf() {
@@ -178,13 +155,11 @@ python -m picollm.accelerated.pretrain.tokenizer_eval
 echo "Waiting for dataset download to complete..."
 wait "$DATASET_DOWNLOAD_PID"
 
-PICOLLM_ACTIVATION_CHECKPOINTING="$PICOLLM_PRETRAIN_ACTIVATION_CHECKPOINTING" \
 torchrun --standalone --nproc_per_node=8 -m picollm.accelerated.pretrain.train -- \
   --depth=24 \
   --target-param-data-ratio=8 \
   --device-batch-size="$PICOLLM_DEVICE_BATCH_SIZE" \
   --total-batch-size="$PICOLLM_TOTAL_BATCH_SIZE" \
-  "${PRETRAIN_EXTRA_ARGS[@]}" \
   "${WANDB_ARGS[@]}" \
   --run="$WANDB_RUN"
 
