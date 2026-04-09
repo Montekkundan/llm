@@ -248,6 +248,15 @@ if batch_ratio != 1.0:
     batch_lr_scale = batch_ratio ** 0.5 # η ∝ √(B/B_ref)
     print0(f"Scaling LRs by {batch_lr_scale:.4f} for batch size {total_batch_size:,} (reference: {B_REF:,})")
 
+proof_run = args.num_iterations > 0 and args.target_param_data_ratio < 0 and args.target_flops < 0
+grad_clip = None
+if proof_run:
+    proof_lr_scale = 0.25
+    batch_lr_scale *= proof_lr_scale
+    grad_clip = 1.0
+    print0(f"Applying conservative LR scale {proof_lr_scale:.2f} for explicit-step proof run")
+    print0(f"Enabling gradient clipping at {grad_clip:.2f} for explicit-step proof run")
+
 weight_decay_scaled = args.weight_decay * math.sqrt(total_batch_size / B_REF) * (D_REF / target_tokens)
 if weight_decay_scaled != args.weight_decay:
     print0(f"Scaling weight decay from {args.weight_decay:.6f} to {weight_decay_scaled:.6f} for depth {args.depth}")
@@ -440,12 +449,16 @@ while True:
             group["weight_decay"] = muon_weight_decay
     if scaler is not None:
         scaler.unscale_(optimizer)
+        if grad_clip is not None:
+            torch.nn.utils.clip_grad_norm_(orig_model.parameters(), grad_clip)
         if is_ddp_initialized():
             for v in scaler._found_inf_per_device(optimizer).values():
                 dist.all_reduce(v, op=dist.ReduceOp.MAX)
         scaler.step(optimizer)
         scaler.update()
     else:
+        if grad_clip is not None:
+            torch.nn.utils.clip_grad_norm_(orig_model.parameters(), grad_clip)
         optimizer.step()
     model.zero_grad(set_to_none=True)
     train_loss_f = train_loss.item() # .item() is a CPU-GPU sync point

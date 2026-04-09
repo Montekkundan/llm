@@ -5,13 +5,15 @@ import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils.checkpoint import checkpoint
 
 from picollm.accelerated.common import get_dist_info, print0, COMPUTE_DTYPE
 from picollm.accelerated.optim import MuonAdamW, DistMuonAdamW
 
 from picollm.accelerated.flash_attention import flash_attn
 
-TRAIN_LOSS_CHUNK_ROWS = int(os.environ.get("PICOLLM_TRAIN_LOSS_CHUNK_ROWS", "128"))
+TRAIN_LOSS_CHUNK_ROWS = int(os.environ.get("PICOLLM_TRAIN_LOSS_CHUNK_ROWS", "32"))
+USE_ACTIVATION_CHECKPOINTING = os.environ.get("PICOLLM_ACTIVATION_CHECKPOINTING", "1") != "0"
 
 @dataclass
 class GPTConfig:
@@ -388,7 +390,15 @@ class GPT(nn.Module):
         for i, block in enumerate(self.transformer.h):
             x = self.resid_lambdas[i] * x + self.x0_lambdas[i] * x0
             ve = self.value_embeds[str(i)](idx).to(x.dtype) if str(i) in self.value_embeds else None
-            x = block(x, ve, cos_sin, self.window_sizes[i], kv_cache)
+            if self.training and kv_cache is None and USE_ACTIVATION_CHECKPOINTING:
+                x = checkpoint(
+                    lambda x_in, ve_in: block(x_in, ve_in, cos_sin, self.window_sizes[i], None),
+                    x,
+                    ve,
+                    use_reentrant=False,
+                )
+            else:
+                x = block(x, ve, cos_sin, self.window_sizes[i], kv_cache)
             if i == backout_layer:
                 x_backout = x
         if x_backout is not None:
