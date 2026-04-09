@@ -13,8 +13,6 @@ cd "$REPO_ROOT"
 
 export OMP_NUM_THREADS=1
 export PICOLLM_BASE_DIR="${PICOLLM_BASE_DIR:-$REPO_ROOT/artifacts/picollm}"
-export PICOLLM_ACTIVATION_CHECKPOINTING="0"
-export PICOLLM_DEVICE_BATCH_SIZE="16"
 export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}"
 export HF_HUB_VERBOSITY="${HF_HUB_VERBOSITY:-warning}"
 mkdir -p "$PICOLLM_BASE_DIR"
@@ -25,10 +23,7 @@ HF_UPLOAD_REPO_ID="${HF_UPLOAD_REPO_ID:-}"
 HF_UPLOAD_PRIVATE="${HF_UPLOAD_PRIVATE:-1}"
 export PYTHONUNBUFFERED=1
 
-unset PICOLLM_FLASH_IMPL
-unset PICOLLM_TOTAL_BATCH_SIZE
 unset PICOLLM_TRAIN_LOSS_CHUNK_ROWS
-unset TORCH_COMPILE_DISABLE
 
 if [[ "$WANDB_RUN" != "dummy" ]]; then
   : "${WANDB_API_KEY:?Set WANDB_API_KEY (or use WANDB_RUN=dummy)}"
@@ -140,10 +135,36 @@ command -v uv >/dev/null 2>&1 || curl -LsSf https://astral.sh/uv/install.sh | sh
 uv sync --extra gpu
 source .venv/bin/activate
 
-torchrun --standalone --nproc_per_node=8 -m picollm.accelerated.pretrain.preflight -- \
+eval "$(python -m picollm.accelerated.speedrun_config --format shell)"
+
+if [[ "$PICOLLM_SUPPORTED" != "1" ]]; then
+  echo "$PICOLLM_UNSUPPORTED_REASON" >&2
+  exit 1
+fi
+
+if [[ "$PICOLLM_FORCE_FLASH_IMPL" == "sdpa" ]]; then
+  export PICOLLM_FLASH_IMPL=sdpa
+else
+  unset PICOLLM_FLASH_IMPL
+fi
+
+export PICOLLM_ACTIVATION_CHECKPOINTING
+export PICOLLM_DEVICE_BATCH_SIZE
+export PICOLLM_TOTAL_BATCH_SIZE
+
+echo "Speedrun hardware: $PICOLLM_HARDWARE_SUMMARY"
+echo "Speedrun settings: $PICOLLM_SETTINGS_SUMMARY"
+
+FP8_ARGS=()
+if [[ "$PICOLLM_ENABLE_FP8" == "1" ]]; then
+  FP8_ARGS+=(--fp8)
+fi
+
+torchrun --standalone --nproc_per_node="$PICOLLM_NPROC_PER_NODE" -m picollm.accelerated.pretrain.preflight -- \
   --depth=24 \
   --device-batch-size="$PICOLLM_DEVICE_BATCH_SIZE" \
-  --fp8
+  --window-pattern="$PICOLLM_WINDOW_PATTERN" \
+  "${FP8_ARGS[@]}"
 
 python -m picollm.accelerated.report reset
 
@@ -157,27 +178,31 @@ python -m picollm.accelerated.pretrain.tokenizer_eval
 echo "Waiting for dataset download to complete..."
 wait "$DATASET_DOWNLOAD_PID"
 
-torchrun --standalone --nproc_per_node=8 -m picollm.accelerated.pretrain.train -- \
+torchrun --standalone --nproc_per_node="$PICOLLM_NPROC_PER_NODE" -m picollm.accelerated.pretrain.train -- \
   --depth=24 \
+  --window-pattern="$PICOLLM_WINDOW_PATTERN" \
   --target-param-data-ratio=8 \
   --device-batch-size="$PICOLLM_DEVICE_BATCH_SIZE" \
-  --fp8 \
+  --total-batch-size="$PICOLLM_TOTAL_BATCH_SIZE" \
+  "${FP8_ARGS[@]}" \
   "${WANDB_ARGS[@]}" \
   --run="$WANDB_RUN"
 
-torchrun --standalone --nproc_per_node=8 -m picollm.accelerated.pretrain.eval -- \
+torchrun --standalone --nproc_per_node="$PICOLLM_NPROC_PER_NODE" -m picollm.accelerated.pretrain.eval -- \
   --device-batch-size="$PICOLLM_DEVICE_BATCH_SIZE"
 
 curl -L -o "$PICOLLM_BASE_DIR/identity_conversations.jsonl" \
   https://karpathy-public.s3.us-west-2.amazonaws.com/identity_conversations.jsonl
 
-torchrun --standalone --nproc_per_node=8 -m picollm.accelerated.chat.sft -- \
+torchrun --standalone --nproc_per_node="$PICOLLM_NPROC_PER_NODE" -m picollm.accelerated.chat.sft -- \
   --device-batch-size="$PICOLLM_DEVICE_BATCH_SIZE" \
+  --total-batch-size="$PICOLLM_TOTAL_BATCH_SIZE" \
   "${WANDB_ARGS[@]}" \
   --run="$WANDB_RUN"
 
-torchrun --standalone --nproc_per_node=8 -m picollm.accelerated.chat.eval -- \
-  -i sft
+torchrun --standalone --nproc_per_node="$PICOLLM_NPROC_PER_NODE" -m picollm.accelerated.chat.eval -- \
+  -i sft \
+  -b "$PICOLLM_CHAT_EVAL_BATCH_SIZE"
 
 python -m picollm.accelerated.report generate
 

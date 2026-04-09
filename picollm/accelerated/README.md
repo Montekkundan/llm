@@ -27,12 +27,21 @@ Notes:
 
 - `WANDB_ENTITY` is required for any non-dummy W&B run in this repo.
 - `HF_TOKEN` is recommended for Hugging Face downloads and rate limits. Public datasets may still work without it.
-- `speedrun.sh` is the single reference script. It clears stale flash/compile overrides and runs the accelerated path automatically when the environment supports it.
+- `speedrun.sh` is the single reference script. It now auto-detects visible CUDA GPU count, memory, capability, FA3/FP8 eligibility, batch size, activation checkpointing, and a safer attention window pattern.
 - `speedrun.sh` now starts with a distributed preflight that does a small synthetic forward/backward/optimizer smoke test on the same FA3/FP8/compile stack before dataset work begins.
-- The reference speedrun uses auto FA3 selection, pretrain `--fp8`, `device-batch-size=16`, auto total batch size, and the full eval path instead of the earlier bounded proof recipe.
+- On Hopper-class boxes it keeps the fast defaults. On non-Hopper CUDA boxes it automatically disables FP8, forces SDPA, and switches to `window-pattern=L` so the run is slower but materially more portable.
 - Rebuild the environment with `uv sync --extra gpu` after pulling, because picoLLM now pins `torch==2.9.1` for this runtime path.
 - `HF_UPLOAD_REPO_ID` is optional. If set, the speedrun uploads the final runtime artifacts to a Hugging Face model repo.
 - `HF_UPLOAD_PRIVATE=1` keeps that repo private by default.
+
+Optional manual overrides if you need to pin a different configuration:
+
+- `PICOLLM_NPROC_PER_NODE`
+- `PICOLLM_DEVICE_BATCH_SIZE`
+- `PICOLLM_TOTAL_BATCH_SIZE`
+- `PICOLLM_ENABLE_FP8`
+- `PICOLLM_ACTIVATION_CHECKPOINTING`
+- `PICOLLM_WINDOW_PATTERN`
 
 ## Full Run
 
@@ -49,6 +58,8 @@ bash picollm/accelerated/speedrun.sh web
 ```
 
 `speedrun.sh` is the single reference script. It goes from dataset/tokenizer work through pretraining, pretrain eval, SFT, chat eval, report generation, optional Hugging Face backup, and then opens the CLI or web chat UI.
+
+At launch it prints the detected hardware summary and the chosen speedrun settings so you can see exactly what it decided for the current machine.
 
 ## Optional Hugging Face Backup
 
@@ -78,9 +89,9 @@ Main entrypoints:
 
 - `python -m picollm.accelerated.dataset`
 - `python -m picollm.accelerated.pretrain.train_tokenizer`
-- `python -m picollm.accelerated.pretrain.train --depth=24 --target-param-data-ratio=8 --device-batch-size=16 --fp8 --wandb-entity "$WANDB_ENTITY"`
-- `python -m picollm.accelerated.pretrain.eval --device-batch-size=16`
-- `python -m picollm.accelerated.chat.sft --device-batch-size=16 --wandb-entity "$WANDB_ENTITY"`
+- `python -m picollm.accelerated.pretrain.train --depth=24 --target-param-data-ratio=8 --device-batch-size="$PICOLLM_DEVICE_BATCH_SIZE" --total-batch-size="$PICOLLM_TOTAL_BATCH_SIZE" --wandb-entity "$WANDB_ENTITY"`
+- `python -m picollm.accelerated.pretrain.eval --device-batch-size="$PICOLLM_DEVICE_BATCH_SIZE"`
+- `python -m picollm.accelerated.chat.sft --device-batch-size="$PICOLLM_DEVICE_BATCH_SIZE" --total-batch-size="$PICOLLM_TOTAL_BATCH_SIZE" --wandb-entity "$WANDB_ENTITY"`
 - `python -m picollm.accelerated.chat.eval -i sft`
 - `python -m picollm.accelerated.chat.cli`
 - `python -m picollm.accelerated.chat.web`
