@@ -99,9 +99,6 @@ for name, fallback, source in [
 
 orig_model = model
 compile_disabled = os.environ.get("TORCH_COMPILE_DISABLE") == "1"
-if USE_FA3 and not compile_disabled:
-    print0("Disabling torch.compile for model forward/backward because the current FA3 stack is not torch.compile-safe.")
-    compile_disabled = True
 if compile_disabled:
     print0("torch.compile disabled for model forward/backward")
 else:

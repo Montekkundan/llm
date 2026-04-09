@@ -145,8 +145,6 @@ if args.fp8:
         def fp8_module_filter(mod: nn.Module, fqn: str) -> bool:
             if not isinstance(mod, nn.Linear):
                 return False
-            if fqn == "lm_head":
-                return False
             if mod.in_features % 16 != 0 or mod.out_features % 16 != 0:
                 return False
             if min(mod.in_features, mod.out_features) < 128:
@@ -208,9 +206,6 @@ orig_model = model # original, uncompiled model, for saving raw model state_dict
 if orig_model.use_activation_checkpointing:
     print0("Activation checkpointing enabled for pretraining")
 compile_disabled = os.environ.get("TORCH_COMPILE_DISABLE") == "1"
-if using_fa3 and not compile_disabled:
-    print0("Disabling torch.compile for model forward/backward because the current FA3 stack is not torch.compile-safe.")
-    compile_disabled = True
 if compile_disabled:
     print0("torch.compile disabled for model forward/backward")
 else:

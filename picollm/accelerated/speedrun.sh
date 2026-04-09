@@ -13,15 +13,8 @@ cd "$REPO_ROOT"
 
 export OMP_NUM_THREADS=1
 export PICOLLM_BASE_DIR="${PICOLLM_BASE_DIR:-$REPO_ROOT/artifacts/picollm}"
-export PICOLLM_FLASH_IMPL="sdpa"
 export PICOLLM_ACTIVATION_CHECKPOINTING="0"
-export PICOLLM_DEVICE_BATCH_SIZE="1"
-export PICOLLM_TOTAL_BATCH_SIZE="65536"
-export PICOLLM_TRAIN_LOSS_CHUNK_ROWS="4"
-export PICOLLM_PRETRAIN_EVAL_MODES="sample,core"
-export PICOLLM_PRETRAIN_MAX_PER_TASK="8"
-export PICOLLM_CHAT_EVAL_MAX_PROBLEMS="8"
-export PICOLLM_CHAT_EVAL_BATCH_SIZE="8"
+export PICOLLM_DEVICE_BATCH_SIZE="16"
 export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}"
 export HF_HUB_VERBOSITY="${HF_HUB_VERBOSITY:-warning}"
 mkdir -p "$PICOLLM_BASE_DIR"
@@ -31,6 +24,11 @@ WANDB_ENTITY="${WANDB_ENTITY:-}"
 HF_UPLOAD_REPO_ID="${HF_UPLOAD_REPO_ID:-}"
 HF_UPLOAD_PRIVATE="${HF_UPLOAD_PRIVATE:-1}"
 export PYTHONUNBUFFERED=1
+
+unset PICOLLM_FLASH_IMPL
+unset PICOLLM_TOTAL_BATCH_SIZE
+unset PICOLLM_TRAIN_LOSS_CHUNK_ROWS
+unset TORCH_COMPILE_DISABLE
 
 if [[ "$WANDB_RUN" != "dummy" ]]; then
   : "${WANDB_API_KEY:?Set WANDB_API_KEY (or use WANDB_RUN=dummy)}"
@@ -115,7 +113,6 @@ Not included:
 git clone https://github.com/Montekkundan/llm
 cd llm
 export PICOLLM_BASE_DIR=\$PWD/artifacts/picollm
-export PICOLLM_FLASH_IMPL=sdpa
 hf download $repo_id --repo-type model --local-dir "\$PICOLLM_BASE_DIR"
 uv sync --extra gpu
 source .venv/bin/activate
@@ -159,13 +156,11 @@ torchrun --standalone --nproc_per_node=8 -m picollm.accelerated.pretrain.train -
   --depth=24 \
   --target-param-data-ratio=8 \
   --device-batch-size="$PICOLLM_DEVICE_BATCH_SIZE" \
-  --total-batch-size="$PICOLLM_TOTAL_BATCH_SIZE" \
+  --fp8 \
   "${WANDB_ARGS[@]}" \
   --run="$WANDB_RUN"
 
 torchrun --standalone --nproc_per_node=8 -m picollm.accelerated.pretrain.eval -- \
-  --eval="$PICOLLM_PRETRAIN_EVAL_MODES" \
-  --max-per-task="$PICOLLM_PRETRAIN_MAX_PER_TASK" \
   --device-batch-size="$PICOLLM_DEVICE_BATCH_SIZE"
 
 curl -L -o "$PICOLLM_BASE_DIR/identity_conversations.jsonl" \
@@ -173,14 +168,11 @@ curl -L -o "$PICOLLM_BASE_DIR/identity_conversations.jsonl" \
 
 torchrun --standalone --nproc_per_node=8 -m picollm.accelerated.chat.sft -- \
   --device-batch-size="$PICOLLM_DEVICE_BATCH_SIZE" \
-  --total-batch-size="$PICOLLM_TOTAL_BATCH_SIZE" \
   "${WANDB_ARGS[@]}" \
   --run="$WANDB_RUN"
 
 torchrun --standalone --nproc_per_node=8 -m picollm.accelerated.chat.eval -- \
-  -i sft \
-  -b "$PICOLLM_CHAT_EVAL_BATCH_SIZE" \
-  -x "$PICOLLM_CHAT_EVAL_MAX_PROBLEMS"
+  -i sft
 
 python -m picollm.accelerated.report generate
 

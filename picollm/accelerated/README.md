@@ -27,8 +27,9 @@ Notes:
 
 - `WANDB_ENTITY` is required for any non-dummy W&B run in this repo.
 - `HF_TOKEN` is recommended for Hugging Face downloads and rate limits. Public datasets may still work without it.
-- `speedrun.sh` pins the proven stable recipe internally, so stale shell exports do not silently change the reference run.
-- That stable recipe uses `PICOLLM_FLASH_IMPL=sdpa`, `device-batch-size=1`, `total-batch-size=65536`, bounded base eval (`sample,core`), and bounded chat eval (`max_problems=8`).
+- `speedrun.sh` is the single optimized reference script. It clears stale flash/compile overrides and runs the Hopper-first path automatically.
+- The reference speedrun uses auto FA3 selection, pretrain `--fp8`, `device-batch-size=16`, auto total batch size, and the full eval path instead of the earlier bounded proof recipe.
+- Rebuild the environment with `uv sync --extra gpu` after pulling, because picoLLM now pins the same `torch==2.9.1` runtime that nanochat uses for this path.
 - `HF_UPLOAD_REPO_ID` is optional. If set, the speedrun uploads the final runtime artifacts to a Hugging Face model repo.
 - `HF_UPLOAD_PRIVATE=1` keeps that repo private by default.
 
@@ -76,9 +77,9 @@ Main entrypoints:
 
 - `python -m picollm.accelerated.dataset`
 - `python -m picollm.accelerated.pretrain.train_tokenizer`
-- `python -m picollm.accelerated.pretrain.train --depth=24 --target-param-data-ratio=8 --device-batch-size=1 --total-batch-size=65536 --wandb-entity "$WANDB_ENTITY"`
-- `python -m picollm.accelerated.pretrain.eval --eval sample,core --max-per-task=8 --device-batch-size=1`
-- `python -m picollm.accelerated.chat.sft --device-batch-size=1 --total-batch-size=65536 --wandb-entity "$WANDB_ENTITY"`
+- `python -m picollm.accelerated.pretrain.train --depth=24 --target-param-data-ratio=8 --device-batch-size=16 --fp8 --wandb-entity "$WANDB_ENTITY"`
+- `python -m picollm.accelerated.pretrain.eval --device-batch-size=16`
+- `python -m picollm.accelerated.chat.sft --device-batch-size=16 --wandb-entity "$WANDB_ENTITY"`
 - `python -m picollm.accelerated.chat.eval -i sft`
 - `python -m picollm.accelerated.chat.cli`
 - `python -m picollm.accelerated.chat.web`
