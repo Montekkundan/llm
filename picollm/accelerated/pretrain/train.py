@@ -195,7 +195,14 @@ def disable_fp8(model):
 
 
 orig_model = model # original, uncompiled model, for saving raw model state_dict and for inference/evaluation (because the shapes may change shape)
-model = torch.compile(model, dynamic=False) # the inputs to model will never change shape so dynamic=False is safe
+compile_disabled = os.environ.get("TORCH_COMPILE_DISABLE") == "1"
+if using_fa3 and not compile_disabled:
+    print0("WARNING: Disabling torch.compile for the model because Flash Attention 3 is unstable under torch.compile on this stack.")
+    compile_disabled = True
+if compile_disabled:
+    print0("torch.compile disabled for model forward/backward")
+else:
+    model = torch.compile(model, dynamic=False) # the inputs to model will never change shape so dynamic=False is safe
 
 
 param_counts = model.num_scaling_params()

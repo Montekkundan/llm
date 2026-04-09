@@ -90,7 +90,14 @@ for name, fallback, source in [
         print0(f"Using {name}={arg_val}")
 
 orig_model = model
-model = torch.compile(model, dynamic=False)
+compile_disabled = os.environ.get("TORCH_COMPILE_DISABLE") == "1"
+if HAS_FA3 and not compile_disabled:
+    print0("WARNING: Disabling torch.compile for the model because Flash Attention 3 is unstable under torch.compile on this stack.")
+    compile_disabled = True
+if compile_disabled:
+    print0("torch.compile disabled for model forward/backward")
+else:
+    model = torch.compile(model, dynamic=False)
 depth = model.config.n_layer
 num_flops_per_token = model.estimate_flops()
 tokens_per_fwdbwd = args.device_batch_size * args.max_seq_len # tokens per iteration for a single rank
