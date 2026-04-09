@@ -504,9 +504,10 @@ while True:
 
     if first_step_of_run:
         gc.collect() # manually collect a lot of garbage from setup
-        gc.freeze() # immediately freeze all currently surviving objects and exclude them from GC
-        gc.disable() # nuclear intervention here: disable GC entirely except:
-    elif step % 5000 == 0: # every 5000 steps...
+        if ddp_world_size == 1:
+            gc.freeze() # fine for the single-process path, avoids repeated GC scans
+            gc.disable()
+    elif step % 100 == 0: # keep GC on for distributed training; comm futures may form cycles
         gc.collect() # manually collect, just to be safe for very, very long runs
 
 print0(f"Peak memory usage: {get_max_memory() / 1024 / 1024:.2f}MiB")

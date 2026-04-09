@@ -413,9 +413,9 @@ class GPT(nn.Module):
                 total_loss = x_flat.new_zeros(())
                 for start in range(0, x_flat.size(0), TRAIN_LOSS_CHUNK_ROWS):
                     end = start + TRAIN_LOSS_CHUNK_ROWS
-                    logits = linear_in_compute_dtype(x_flat[start:end], self.lm_head.weight)[..., :self.config.vocab_size]
+                    logits = F.linear(x_flat[start:end].float(), self.lm_head.weight)[..., :self.config.vocab_size]
                     total_loss = total_loss + F.cross_entropy(
-                        logits.float(),
+                        logits,
                         targets_flat[start:end],
                         ignore_index=-1,
                         reduction='sum',
@@ -429,9 +429,9 @@ class GPT(nn.Module):
             total_tokens = targets_flat.ne(-1).sum()
             for start in range(0, x_flat.size(0), TRAIN_LOSS_CHUNK_ROWS):
                 end = start + TRAIN_LOSS_CHUNK_ROWS
-                logits = linear_in_compute_dtype(x_flat[start:end], self.lm_head.weight)[..., :self.config.vocab_size]
+                logits = F.linear(x_flat[start:end].float(), self.lm_head.weight)[..., :self.config.vocab_size]
                 total_loss = total_loss + F.cross_entropy(
-                    logits.float(),
+                    logits,
                     targets_flat[start:end],
                     ignore_index=-1,
                     reduction='sum',
