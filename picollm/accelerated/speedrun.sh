@@ -13,9 +13,20 @@ cd "$REPO_ROOT"
 
 export OMP_NUM_THREADS=1
 export PICOLLM_BASE_DIR="${PICOLLM_BASE_DIR:-$REPO_ROOT/artifacts/picollm}"
-export PICOLLM_FLASH_IMPL="${PICOLLM_FLASH_IMPL:-sdpa}"
+PICOLLM_FLASH_IMPL="${PICOLLM_FLASH_IMPL-}"
+export PICOLLM_ACTIVATION_CHECKPOINTING="${PICOLLM_ACTIVATION_CHECKPOINTING:-0}"
 export HF_HUB_VERBOSITY="${HF_HUB_VERBOSITY:-warning}"
 mkdir -p "$PICOLLM_BASE_DIR"
+
+SPEEDRUN_PROFILE="${PICOLLM_SPEEDRUN_PROFILE:-nanochat}"
+if [[ "$SPEEDRUN_PROFILE" != "nanochat" && "$SPEEDRUN_PROFILE" != "stable" ]]; then
+  echo "Invalid PICOLLM_SPEEDRUN_PROFILE=$SPEEDRUN_PROFILE (expected nanochat|stable)" >&2
+  exit 1
+fi
+if [[ -z "$PICOLLM_FLASH_IMPL" && "$SPEEDRUN_PROFILE" == "stable" ]]; then
+  PICOLLM_FLASH_IMPL="sdpa"
+fi
+export PICOLLM_FLASH_IMPL
 
 WANDB_RUN="${WANDB_RUN:-dummy}"
 WANDB_ENTITY="${WANDB_ENTITY:-}"
@@ -146,23 +157,50 @@ python -m picollm.accelerated.pretrain.tokenizer_eval
 echo "Waiting for dataset download to complete..."
 wait "$DATASET_DOWNLOAD_PID"
 
+if [[ "$SPEEDRUN_PROFILE" == "nanochat" ]]; then
+  PRETRAIN_ARGS=(
+    --depth=24
+    --target-param-data-ratio=8
+    --device-batch-size=16
+    --fp8
+  )
+  PRETRAIN_EVAL_ARGS=(
+    --device-batch-size=16
+  )
+  SFT_ARGS=(
+    --device-batch-size=16
+  )
+else
+  PRETRAIN_ARGS=(
+    --depth=24
+    --target-param-data-ratio=8
+    --device-batch-size=1
+    --total-batch-size=65536
+  )
+  PRETRAIN_EVAL_ARGS=(
+    --device-batch-size=1
+  )
+  SFT_ARGS=(
+    --device-batch-size=1
+    --total-batch-size=65536
+  )
+fi
+
+echo "Using speedrun profile: $SPEEDRUN_PROFILE"
+
 torchrun --standalone --nproc_per_node=8 -m picollm.accelerated.pretrain.train -- \
-  --depth=24 \
-  --target-param-data-ratio=8 \
-  --device-batch-size=1 \
-  --total-batch-size=65536 \
+  "${PRETRAIN_ARGS[@]}" \
   "${WANDB_ARGS[@]}" \
   --run="$WANDB_RUN"
 
 torchrun --standalone --nproc_per_node=8 -m picollm.accelerated.pretrain.eval -- \
-  --device-batch-size=1
+  "${PRETRAIN_EVAL_ARGS[@]}"
 
 curl -L -o "$PICOLLM_BASE_DIR/identity_conversations.jsonl" \
   https://karpathy-public.s3.us-west-2.amazonaws.com/identity_conversations.jsonl
 
 torchrun --standalone --nproc_per_node=8 -m picollm.accelerated.chat.sft -- \
-  --device-batch-size=1 \
-  --total-batch-size=65536 \
+  "${SFT_ARGS[@]}" \
   "${WANDB_ARGS[@]}" \
   --run="$WANDB_RUN"
 

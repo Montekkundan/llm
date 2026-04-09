@@ -13,7 +13,8 @@ from picollm.accelerated.optim import MuonAdamW, DistMuonAdamW
 from picollm.accelerated.flash_attention import flash_attn
 
 TRAIN_LOSS_CHUNK_ROWS = int(os.environ.get("PICOLLM_TRAIN_LOSS_CHUNK_ROWS", "32"))
-USE_ACTIVATION_CHECKPOINTING = os.environ.get("PICOLLM_ACTIVATION_CHECKPOINTING", "1") != "0"
+# Match nanochat's default fast path unless explicitly overridden.
+USE_ACTIVATION_CHECKPOINTING = os.environ.get("PICOLLM_ACTIVATION_CHECKPOINTING", "0") != "0"
 
 @dataclass
 class GPTConfig:

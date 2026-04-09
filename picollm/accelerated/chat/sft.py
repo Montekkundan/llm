@@ -76,9 +76,6 @@ if not HAS_FA3:
     print0("WARNING: Flash Attention 3 not available, using PyTorch SDPA fallback. Training will be less efficient.")
 
 model, tokenizer, meta = load_model("base", device, phase="train", model_tag=args.model_tag, step=args.model_step)
-if getattr(model, "use_activation_checkpointing", False):
-    model.use_activation_checkpointing = False
-    print0("Disabling activation checkpointing for SFT; checkpoint recomputation is unstable on this stack.")
 
 pretrain_user_config = meta.get("user_config", {})
 for name, fallback, source in [
@@ -102,9 +99,6 @@ for name, fallback, source in [
 
 orig_model = model
 compile_disabled = os.environ.get("TORCH_COMPILE_DISABLE") == "1"
-if HAS_FA3 and not compile_disabled:
-    print0("WARNING: Disabling torch.compile for the model because Flash Attention 3 is unstable under torch.compile on this stack.")
-    compile_disabled = True
 if compile_disabled:
     print0("torch.compile disabled for model forward/backward")
 else:

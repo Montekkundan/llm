@@ -145,8 +145,6 @@ if args.fp8:
         def fp8_module_filter(mod: nn.Module, fqn: str) -> bool:
             if not isinstance(mod, nn.Linear):
                 return False
-            if fqn == "lm_head":
-                return False
             if mod.in_features % 16 != 0 or mod.out_features % 16 != 0:
                 return False
             if min(mod.in_features, mod.out_features) < 128:
@@ -206,9 +204,6 @@ def disable_fp8(model):
 
 orig_model = model # original, uncompiled model, for saving raw model state_dict and for inference/evaluation (because the shapes may change shape)
 compile_disabled = os.environ.get("TORCH_COMPILE_DISABLE") == "1"
-if using_fa3 and not compile_disabled:
-    print0("WARNING: Disabling torch.compile for the model because Flash Attention 3 is unstable under torch.compile on this stack.")
-    compile_disabled = True
 if compile_disabled:
     print0("torch.compile disabled for model forward/backward")
 else:
