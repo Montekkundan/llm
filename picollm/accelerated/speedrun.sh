@@ -140,6 +140,11 @@ command -v uv >/dev/null 2>&1 || curl -LsSf https://astral.sh/uv/install.sh | sh
 uv sync --extra gpu
 source .venv/bin/activate
 
+torchrun --standalone --nproc_per_node=8 -m picollm.accelerated.pretrain.preflight -- \
+  --depth=24 \
+  --device-batch-size="$PICOLLM_DEVICE_BATCH_SIZE" \
+  --fp8
+
 python -m picollm.accelerated.report reset
 
 python -m picollm.accelerated.dataset -n 8

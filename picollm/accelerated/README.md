@@ -28,6 +28,7 @@ Notes:
 - `WANDB_ENTITY` is required for any non-dummy W&B run in this repo.
 - `HF_TOKEN` is recommended for Hugging Face downloads and rate limits. Public datasets may still work without it.
 - `speedrun.sh` is the single reference script. It clears stale flash/compile overrides and runs the accelerated path automatically when the environment supports it.
+- `speedrun.sh` now starts with a distributed preflight that does a small synthetic forward/backward/optimizer smoke test on the same FA3/FP8/compile stack before dataset work begins.
 - The reference speedrun uses auto FA3 selection, pretrain `--fp8`, `device-batch-size=16`, auto total batch size, and the full eval path instead of the earlier bounded proof recipe.
 - Rebuild the environment with `uv sync --extra gpu` after pulling, because picoLLM now pins `torch==2.9.1` for this runtime path.
 - `HF_UPLOAD_REPO_ID` is optional. If set, the speedrun uploads the final runtime artifacts to a Hugging Face model repo.
