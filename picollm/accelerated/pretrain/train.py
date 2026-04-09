@@ -204,6 +204,9 @@ def disable_fp8(model):
 
 orig_model = model # original, uncompiled model, for saving raw model state_dict and for inference/evaluation (because the shapes may change shape)
 compile_disabled = os.environ.get("TORCH_COMPILE_DISABLE") == "1"
+if using_fa3 and not compile_disabled:
+    print0("Disabling torch.compile for model forward/backward because the current FA3 stack is not torch.compile-safe.")
+    compile_disabled = True
 if compile_disabled:
     print0("torch.compile disabled for model forward/backward")
 else:

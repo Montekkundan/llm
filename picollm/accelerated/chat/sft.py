@@ -10,7 +10,7 @@ from picollm.accelerated.tokenizer import get_token_bytes
 from picollm.accelerated.checkpoint_manager import save_checkpoint, load_model, load_optimizer_state
 from picollm.accelerated.loss_eval import evaluate_bpb
 import torch.distributed as dist
-from picollm.accelerated.flash_attention import HAS_FA3
+from picollm.accelerated.flash_attention import HAS_FA3, USE_FA3
 from picollm.accelerated.engine import Engine
 from picollm.accelerated.chat.eval import run_chat_eval
 
@@ -99,6 +99,9 @@ for name, fallback, source in [
 
 orig_model = model
 compile_disabled = os.environ.get("TORCH_COMPILE_DISABLE") == "1"
+if USE_FA3 and not compile_disabled:
+    print0("Disabling torch.compile for model forward/backward because the current FA3 stack is not torch.compile-safe.")
+    compile_disabled = True
 if compile_disabled:
     print0("torch.compile disabled for model forward/backward")
 else:
