@@ -1,4 +1,5 @@
 import argparse
+import math
 from functools import partial
 import torch
 import torch.distributed as dist
@@ -125,7 +126,17 @@ def run_chat_eval(task_name, model, tokenizer, engine,
         'GSM8K': partial(GSM8K, subset="main", split="test"),
         'SpellingBee': partial(SpellingBee, size=256, split="test"),
     }[task_name]
+    ddp, ddp_rank, ddp_local_rank, ddp_world_size = get_dist_info()
+    print0(f"[{task_name}] Loading dataset...")
     task_object = task_module()
+    num_available = len(task_object)
+    num_selected = num_available if max_problems is None else min(num_available, max_problems)
+    approx_per_rank = math.ceil(num_selected / ddp_world_size)
+    if task_object.eval_type == 'generative':
+        extra = " Generated code will be executed and graded." if task_name == "HumanEval" else ""
+        print0(f"[{task_name}] Loaded {num_available} examples. Evaluating {num_selected} across {ddp_world_size} ranks (~{approx_per_rank}/rank).{extra}")
+    elif task_object.eval_type == 'categorical':
+        print0(f"[{task_name}] Loaded {num_available} examples. Evaluating {num_selected} across {ddp_world_size} ranks (~{approx_per_rank}/rank).")
     if task_object.eval_type == 'generative':
         acc = run_generative_eval(task_object, tokenizer, model, engine, num_samples, max_new_tokens, temperature, top_k, max_problems=max_problems)
     elif task_object.eval_type == 'categorical':

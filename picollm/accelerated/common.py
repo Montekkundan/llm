@@ -76,6 +76,8 @@ def setup_default_logging():
         ColoredFormatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     )
     logging.basicConfig(level=logging.INFO, handlers=[handler])
+    for noisy_logger in ("httpx", "httpcore", "urllib3", "huggingface_hub"):
+        logging.getLogger(noisy_logger).setLevel(logging.WARNING)
 
 
 setup_default_logging()
