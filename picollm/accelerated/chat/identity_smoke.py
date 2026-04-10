@@ -2,10 +2,10 @@ import argparse
 import json
 import re
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from picollm.accelerated.checkpoint_manager import load_model
-from picollm.accelerated.common import autodetect_device_type, compute_init
-from picollm.accelerated.engine import Engine
+if TYPE_CHECKING:
+    from picollm.accelerated.engine import Engine
 
 
 FORBIDDEN_PATTERNS = (
@@ -56,7 +56,7 @@ def build_prompt_tokens(tokenizer, prompt: str) -> list[int]:
     return tokens
 
 
-def generate_answer(engine: Engine, tokenizer, prompt: str, max_tokens: int, seed: int) -> str:
+def generate_answer(engine: "Engine", tokenizer, prompt: str, max_tokens: int, seed: int) -> str:
     assistant_end = tokenizer.encode_special("<|assistant_end|>")
     bos = tokenizer.get_bos_token_id()
     generated: list[int] = []
@@ -98,6 +98,10 @@ if __name__ == "__main__":
 
     if args.dataset_only:
         raise SystemExit(0)
+
+    from picollm.accelerated.checkpoint_manager import load_model
+    from picollm.accelerated.common import autodetect_device_type, compute_init
+    from picollm.accelerated.engine import Engine
 
     device_type = autodetect_device_type() if args.device_type == "" else args.device_type
     ddp, ddp_rank, ddp_local_rank, ddp_world_size, device = compute_init(device_type)
