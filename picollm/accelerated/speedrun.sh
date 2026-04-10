@@ -13,7 +13,11 @@ cd "$REPO_ROOT"
 
 export OMP_NUM_THREADS=1
 export PICOLLM_BASE_DIR="${PICOLLM_BASE_DIR:-$REPO_ROOT/artifacts/picollm}"
-export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}"
+if [[ -n "${PYTORCH_CUDA_ALLOC_CONF:-}" && -z "${PYTORCH_ALLOC_CONF:-}" ]]; then
+  export PYTORCH_ALLOC_CONF="$PYTORCH_CUDA_ALLOC_CONF"
+fi
+export PYTORCH_ALLOC_CONF="${PYTORCH_ALLOC_CONF:-expandable_segments:True}"
+unset PYTORCH_CUDA_ALLOC_CONF
 export HF_HUB_VERBOSITY="${HF_HUB_VERBOSITY:-warning}"
 mkdir -p "$PICOLLM_BASE_DIR"
 
@@ -130,6 +134,54 @@ EOF
   echo "Finished uploading runtime artifacts to https://huggingface.co/$repo_id"
 }
 
+print_stage() {
+  local name="$1"
+  echo
+  echo "========== $name =========="
+}
+
+latest_checkpoint_path() {
+  local checkpoints_dir="$1"
+  if [[ ! -d "$checkpoints_dir" ]]; then
+    return 0
+  fi
+  python - <<'PY' "$checkpoints_dir"
+from pathlib import Path
+import sys
+
+from picollm.accelerated.checkpoint_manager import find_largest_model, find_last_step
+
+root = Path(sys.argv[1])
+if not root.exists() or not any(root.iterdir()):
+    raise SystemExit(0)
+model_tag = find_largest_model(str(root))
+step = find_last_step(str(root / model_tag))
+print(root / model_tag / f"model_{step:06d}.pt")
+PY
+}
+
+print_run_summary() {
+  local base_checkpoint_path
+  local sft_checkpoint_path
+  local report_path
+  base_checkpoint_path="$(latest_checkpoint_path "$PICOLLM_BASE_DIR/base_checkpoints")"
+  sft_checkpoint_path="$(latest_checkpoint_path "$PICOLLM_BASE_DIR/chatsft_checkpoints")"
+  report_path="$PICOLLM_BASE_DIR/report"
+
+  echo
+  echo "========== Run Summary =========="
+  echo "Base checkpoint: ${base_checkpoint_path:-not found}"
+  echo "SFT checkpoint: ${sft_checkpoint_path:-not found}"
+  if [[ -d "$report_path" ]]; then
+    echo "Report path: $report_path"
+  else
+    echo "Report path: not found"
+  fi
+  if [[ -n "$HF_UPLOAD_REPO_ID" ]]; then
+    echo "HF model repo: https://huggingface.co/$HF_UPLOAD_REPO_ID"
+  fi
+}
+
 command -v uv >/dev/null 2>&1 || curl -LsSf https://astral.sh/uv/install.sh | sh
 [ -d ".venv" ] || uv venv
 uv sync --extra gpu
@@ -154,30 +206,37 @@ export PICOLLM_TOTAL_BATCH_SIZE
 
 echo "Speedrun hardware: $PICOLLM_HARDWARE_SUMMARY"
 echo "Speedrun settings: $PICOLLM_SETTINGS_SUMMARY"
+if [[ -n "$HF_UPLOAD_REPO_ID" ]]; then
+  echo "HF upload target (model repo): $HF_UPLOAD_REPO_ID"
+fi
 
 FP8_ARGS=()
 if [[ "$PICOLLM_ENABLE_FP8" == "1" ]]; then
   FP8_ARGS+=(--fp8)
 fi
 
+print_stage "Preflight"
 torchrun --standalone --nproc_per_node="$PICOLLM_NPROC_PER_NODE" -m picollm.accelerated.pretrain.preflight -- \
   --depth=24 \
   --device-batch-size="$PICOLLM_DEVICE_BATCH_SIZE" \
   --window-pattern="$PICOLLM_WINDOW_PATTERN" \
   "${FP8_ARGS[@]}"
 
+print_stage "Dataset Bootstrap"
 python -m picollm.accelerated.report reset
 
 python -m picollm.accelerated.dataset -n 8
 python -m picollm.accelerated.dataset -n 170 &
 DATASET_DOWNLOAD_PID=$!
 
+print_stage "Tokenizer"
 python -m picollm.accelerated.pretrain.train_tokenizer
 python -m picollm.accelerated.pretrain.tokenizer_eval
 
 echo "Waiting for dataset download to complete..."
 wait "$DATASET_DOWNLOAD_PID"
 
+print_stage "Base Pretrain"
 torchrun --standalone --nproc_per_node="$PICOLLM_NPROC_PER_NODE" -m picollm.accelerated.pretrain.train -- \
   --depth=24 \
   --window-pattern="$PICOLLM_WINDOW_PATTERN" \
@@ -188,6 +247,7 @@ torchrun --standalone --nproc_per_node="$PICOLLM_NPROC_PER_NODE" -m picollm.acce
   "${WANDB_ARGS[@]}" \
   --run="$WANDB_RUN"
 
+print_stage "Base Eval"
 torchrun --standalone --nproc_per_node="$PICOLLM_NPROC_PER_NODE" -m picollm.accelerated.pretrain.eval -- \
   --device-batch-size="$PICOLLM_DEVICE_BATCH_SIZE"
 
@@ -197,6 +257,8 @@ if [[ ! -f "$IDENTITY_SOURCE" ]]; then
   echo "Set PICOLLM_IDENTITY_CONVERSATIONS_FILE to override, or commit the repo-local picoLLM identity file." >&2
   exit 1
 fi
+print_stage "SFT"
+echo "Identity source: $IDENTITY_SOURCE"
 cp "$IDENTITY_SOURCE" "$PICOLLM_BASE_DIR/identity_conversations.jsonl"
 
 torchrun --standalone --nproc_per_node="$PICOLLM_NPROC_PER_NODE" -m picollm.accelerated.chat.sft -- \
@@ -205,18 +267,25 @@ torchrun --standalone --nproc_per_node="$PICOLLM_NPROC_PER_NODE" -m picollm.acce
   "${WANDB_ARGS[@]}" \
   --run="$WANDB_RUN"
 
+print_stage "Chat Eval"
 torchrun --standalone --nproc_per_node="$PICOLLM_NPROC_PER_NODE" -m picollm.accelerated.chat.eval -- \
   -i sft \
   -b "$PICOLLM_CHAT_EVAL_BATCH_SIZE"
 
+print_stage "Report"
 python -m picollm.accelerated.report generate
 
 if [[ -n "$HF_UPLOAD_REPO_ID" ]]; then
+  print_stage "HF Upload"
   upload_to_hf "$HF_UPLOAD_REPO_ID"
 fi
 
+print_run_summary
+
 if [[ "$MODE" == "web" ]]; then
+  print_stage "Launch Web Chat"
   exec python -m picollm.accelerated.chat.web
 else
+  print_stage "Launch CLI Chat"
   exec python -m picollm.accelerated.chat.cli
 fi
