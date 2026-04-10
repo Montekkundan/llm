@@ -26,6 +26,10 @@ WANDB_ENTITY="${WANDB_ENTITY:-}"
 HF_UPLOAD_REPO_ID="${HF_UPLOAD_REPO_ID:-}"
 HF_ARCHIVE_REPO_ID="${HF_ARCHIVE_REPO_ID:-}"
 HF_UPLOAD_PRIVATE="${HF_UPLOAD_PRIVATE:-1}"
+HF_PERIODIC_SYNC="${HF_PERIODIC_SYNC:-0}"
+HF_SYNC_INTERVAL_SECONDS="${HF_SYNC_INTERVAL_SECONDS:-900}"
+HF_SYNC_MIN_FILE_AGE_SECONDS="${HF_SYNC_MIN_FILE_AGE_SECONDS:-180}"
+PICOLLM_BASE_SAVE_EVERY="${PICOLLM_BASE_SAVE_EVERY:--1}"
 export PYTHONUNBUFFERED=1
 
 unset PICOLLM_TRAIN_LOSS_CHUNK_ROWS
@@ -40,9 +44,14 @@ if [[ -n "$WANDB_ENTITY" ]]; then
   WANDB_ARGS+=(--wandb-entity="$WANDB_ENTITY")
 fi
 
-if [[ -z "${HF_TOKEN:-}" ]]; then
-  echo "HF_TOKEN is not set. Public dataset downloads may still work, but authenticated Hub access is recommended." >&2
+if [[ "$HF_PERIODIC_SYNC" == "1" || "$HF_PERIODIC_SYNC" == "true" ]]; then
+  : "${HF_ARCHIVE_REPO_ID:?Set HF_ARCHIVE_REPO_ID when enabling HF_PERIODIC_SYNC}"
+  if [[ "$PICOLLM_BASE_SAVE_EVERY" == "-1" ]]; then
+    PICOLLM_BASE_SAVE_EVERY=1000
+  fi
 fi
+
+PERIODIC_SYNC_PID=""
 
 upload_to_hf() {
   local repo_id="$1"
@@ -74,6 +83,37 @@ upload_archive_to_hf() {
     --base-dir "$PICOLLM_BASE_DIR" \
     "${visibility_flag[@]}"
 }
+
+start_periodic_archive_sync() {
+  if [[ "$HF_PERIODIC_SYNC" != "1" && "$HF_PERIODIC_SYNC" != "true" ]]; then
+    return
+  fi
+  : "${HF_TOKEN:?Set HF_TOKEN to upload artifacts to the Hugging Face Hub}"
+
+  local visibility_flag=()
+  if [[ "$HF_UPLOAD_PRIVATE" == "0" || "$HF_UPLOAD_PRIVATE" == "false" ]]; then
+    visibility_flag+=(--public)
+  fi
+
+  echo "HF periodic sync: archive repo=$HF_ARCHIVE_REPO_ID interval=${HF_SYNC_INTERVAL_SECONDS}s min_file_age=${HF_SYNC_MIN_FILE_AGE_SECONDS}s save_every=${PICOLLM_BASE_SAVE_EVERY}"
+  python scripts/sync_picollm_archive_to_hf.py \
+    "$HF_ARCHIVE_REPO_ID" \
+    --base-dir "$PICOLLM_BASE_DIR" \
+    --interval-seconds "$HF_SYNC_INTERVAL_SECONDS" \
+    --min-file-age-seconds "$HF_SYNC_MIN_FILE_AGE_SECONDS" \
+    "${visibility_flag[@]}" &
+  PERIODIC_SYNC_PID=$!
+}
+
+stop_periodic_archive_sync() {
+  if [[ -n "$PERIODIC_SYNC_PID" ]]; then
+    kill "$PERIODIC_SYNC_PID" >/dev/null 2>&1 || true
+    wait "$PERIODIC_SYNC_PID" >/dev/null 2>&1 || true
+    PERIODIC_SYNC_PID=""
+  fi
+}
+
+trap stop_periodic_archive_sync EXIT
 
 print_stage() {
   local name="$1"
@@ -166,6 +206,9 @@ fi
 if [[ -n "$HF_UPLOAD_REPO_ID" && -n "$HF_ARCHIVE_REPO_ID" ]]; then
   echo "HF destinations: model repo is for runnable artifacts, archive dataset is for fuller run history."
 fi
+if [[ "$HF_PERIODIC_SYNC" == "1" || "$HF_PERIODIC_SYNC" == "true" ]]; then
+  echo "HF periodic archive sync: enabled"
+fi
 if [[ -n "${PICOLLM_IDENTITY_CONVERSATIONS_URL:-}" ]]; then
   echo "Hosted identity mirror: $PICOLLM_IDENTITY_CONVERSATIONS_URL"
 fi
@@ -184,6 +227,7 @@ torchrun --standalone --nproc_per_node="$PICOLLM_NPROC_PER_NODE" -m picollm.acce
   "${FP8_ARGS[@]}"
 
 print_stage "Dataset Bootstrap"
+start_periodic_archive_sync
 python -m picollm.accelerated.report reset
 
 python -m picollm.accelerated.dataset -n 8
@@ -204,6 +248,7 @@ torchrun --standalone --nproc_per_node="$PICOLLM_NPROC_PER_NODE" -m picollm.acce
   --target-param-data-ratio=8 \
   --device-batch-size="$PICOLLM_DEVICE_BATCH_SIZE" \
   --total-batch-size="$PICOLLM_TOTAL_BATCH_SIZE" \
+  --save-every="$PICOLLM_BASE_SAVE_EVERY" \
   "${FP8_ARGS[@]}" \
   "${WANDB_ARGS[@]}" \
   --run="$WANDB_RUN"
@@ -249,6 +294,7 @@ python scripts/write_picollm_run_manifest.py --base-dir "$PICOLLM_BASE_DIR" --id
 if [[ -n "$HF_UPLOAD_REPO_ID" || -n "$HF_ARCHIVE_REPO_ID" ]]; then
   print_stage "HF Upload"
 fi
+stop_periodic_archive_sync
 if [[ -n "$HF_UPLOAD_REPO_ID" ]]; then
   upload_to_hf "$HF_UPLOAD_REPO_ID"
 fi

@@ -322,6 +322,13 @@ def get_tokenizer():
     from picollm.accelerated.common import get_base_dir
     base_dir = get_base_dir()
     tokenizer_dir = os.path.join(base_dir, "tokenizer")
+    if not os.path.isdir(tokenizer_dir):
+        raise FileNotFoundError(
+            f"Missing tokenizer directory at {tokenizer_dir}. "
+            "Run `python -m picollm.accelerated.pretrain.train_tokenizer`, "
+            "`bash picollm/accelerated/speedrun.sh cli`, or restore a published model repo with "
+            "`python scripts/restore_picollm_from_hf.py <repo-id>`."
+        )
     return RustBPETokenizer.from_directory(tokenizer_dir)
 
 def get_token_bytes(device="cpu"):
@@ -330,7 +337,13 @@ def get_token_bytes(device="cpu"):
     base_dir = get_base_dir()
     tokenizer_dir = os.path.join(base_dir, "tokenizer")
     token_bytes_path = os.path.join(tokenizer_dir, "token_bytes.pt")
-    assert os.path.exists(token_bytes_path), f"Token bytes not found at {token_bytes_path}? It gets written by tok_train.py"
+    if not os.path.exists(token_bytes_path):
+        raise FileNotFoundError(
+            f"Missing token bytes at {token_bytes_path}. "
+            "Run `python -m picollm.accelerated.pretrain.train_tokenizer`, "
+            "`bash picollm/accelerated/speedrun.sh cli`, or restore a published model repo with "
+            "`python scripts/restore_picollm_from_hf.py <repo-id>`."
+        )
     with open(token_bytes_path, "rb") as f:
         token_bytes = torch.load(f, map_location=device)
     return token_bytes

@@ -1,5 +1,6 @@
 import os
-os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+os.environ.setdefault("PYTORCH_ALLOC_CONF", "expandable_segments:True")
+os.environ.pop("PYTORCH_CUDA_ALLOC_CONF", None)
 import gc
 import json
 import time

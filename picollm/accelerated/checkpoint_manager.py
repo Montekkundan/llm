@@ -16,6 +16,18 @@ def log0(message):
     if int(os.environ.get('RANK', 0)) == 0:
         logger.info(message)
 
+
+def _checkpoint_help_message(base_dir, model_dir):
+    checkpoints_dir = os.path.join(base_dir, model_dir)
+    source = "base" if model_dir == "base_checkpoints" else "sft"
+    return (
+        f"Expected picoLLM checkpoints under {checkpoints_dir}. "
+        "Run `bash picollm/accelerated/speedrun.sh cli` or "
+        "`bash picollm/accelerated/speedrun.sh web` to create them locally, "
+        "or restore a published model repo with "
+        f"`python scripts/restore_picollm_from_hf.py <repo-id> --source {source}`."
+    )
+
 def _patch_missing_config_keys(model_config_kwargs):
     """Add default values for new config keys missing in old checkpoints."""
     if "window_pattern" not in model_config_kwargs:
@@ -97,6 +109,8 @@ def build_model(checkpoint_dir, step, device, phase):
 
 
 def find_largest_model(checkpoints_dir):
+    if not os.path.exists(checkpoints_dir):
+        raise FileNotFoundError(f"Missing checkpoint root: {checkpoints_dir}")
     model_tags = [f for f in os.listdir(checkpoints_dir) if os.path.isdir(os.path.join(checkpoints_dir, f))]
     if not model_tags:
         raise FileNotFoundError(f"No checkpoints found in {checkpoints_dir}")
@@ -146,6 +160,8 @@ def load_model(source, *args, **kwargs):
     }[source]
     base_dir = get_base_dir()
     checkpoints_dir = os.path.join(base_dir, model_dir)
+    if not os.path.exists(checkpoints_dir):
+        raise FileNotFoundError(_checkpoint_help_message(base_dir, model_dir))
     return load_model_from_dir(checkpoints_dir, *args, **kwargs)
 
 def load_optimizer_state(source, device, rank, model_tag=None, step=None):
@@ -156,6 +172,8 @@ def load_optimizer_state(source, device, rank, model_tag=None, step=None):
     }[source]
     base_dir = get_base_dir()
     checkpoints_dir = os.path.join(base_dir, model_dir)
+    if not os.path.exists(checkpoints_dir):
+        raise FileNotFoundError(_checkpoint_help_message(base_dir, model_dir))
     if model_tag is None:
         model_tag = find_largest_model(checkpoints_dir)
     checkpoint_dir = os.path.join(checkpoints_dir, model_tag)
@@ -163,7 +181,10 @@ def load_optimizer_state(source, device, rank, model_tag=None, step=None):
         step = find_last_step(checkpoint_dir)
     optimizer_path = os.path.join(checkpoint_dir, f"optim_{step:06d}_rank{rank:d}.pt")
     if not os.path.exists(optimizer_path):
-        log0(f"Optimizer checkpoint not found: {optimizer_path}")
+        log0(
+            "Optimizer checkpoint not found: "
+            f"{optimizer_path}. Inference-focused model bundles intentionally omit optimizer shards."
+        )
         return None
     log0(f"Loading optimizer state from {optimizer_path}")
     optimizer_data = torch.load(optimizer_path, map_location=device)
