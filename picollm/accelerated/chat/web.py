@@ -28,6 +28,10 @@ MIN_TEMPERATURE = 0.0
 MAX_TEMPERATURE = 2.0
 MIN_TOP_K = 0
 MAX_TOP_K = 200
+MIN_TOP_P = 0.0
+MAX_TOP_P = 1.0
+MIN_MIN_P = 0.0
+MAX_MIN_P = 1.0
 MIN_MAX_TOKENS = 1
 MAX_MAX_TOKENS = 4096
 
@@ -41,7 +45,10 @@ parser.add_argument("--host", type=str, default="0.0.0.0", help="Host to bind th
 parser.add_argument("--model-id", type=str, default="picollm-chat", help="Stable model id exposed by the OpenAI-compatible API")
 parser.add_argument("--temperature", type=float, default=0.8, help="Default sampling temperature")
 parser.add_argument("--top-k", type=int, default=50, help="Default top-k sampling parameter")
+parser.add_argument("--top-p", type=float, default=None, help="Default top-p sampling parameter")
+parser.add_argument("--min-p", type=float, default=None, help="Default min-p cutoff relative to the most likely token")
 parser.add_argument("--max-tokens", type=int, default=512, help="Default max generation length")
+parser.add_argument("--seed", type=int, default=None, help="Default seed for generation. empty => random per request")
 parser.add_argument("--device-type", type=str, default="", choices=["cuda", "cpu", "mps"], help="Device type: cuda|cpu|mps")
 args = parser.parse_args()
 
@@ -104,6 +111,8 @@ class ChatRequest(BaseModel):
     max_completion_tokens: Optional[int] = Field(default=None, ge=1, le=MAX_MAX_TOKENS)
     top_k: Optional[int] = None
     top_p: Optional[float] = None
+    min_p: Optional[float] = None
+    seed: Optional[int] = None
 
 
 def validate_chat_request(request: ChatRequest):
@@ -132,6 +141,15 @@ def validate_chat_request(request: ChatRequest):
     if request.top_k is not None and not (MIN_TOP_K <= request.top_k <= MAX_TOP_K):
         raise HTTPException(status_code=400, detail=f"top_k must be between {MIN_TOP_K} and {MAX_TOP_K}.")
 
+    if request.top_p is not None and not (MIN_TOP_P <= request.top_p <= MAX_TOP_P):
+        raise HTTPException(status_code=400, detail=f"top_p must be between {MIN_TOP_P} and {MAX_TOP_P}.")
+
+    if request.min_p is not None and not (MIN_MIN_P <= request.min_p <= MAX_MIN_P):
+        raise HTTPException(status_code=400, detail=f"min_p must be between {MIN_MIN_P} and {MAX_MIN_P}.")
+
+    if request.seed is not None and request.seed < 0:
+        raise HTTPException(status_code=400, detail="seed must be non-negative.")
+
 
 def resolve_max_tokens(request: ChatRequest) -> int:
     return request.max_completion_tokens or request.max_tokens or args.max_tokens
@@ -143,6 +161,22 @@ def request_temperature(request: ChatRequest) -> float:
 
 def request_top_k(request: ChatRequest) -> int:
     return request.top_k if request.top_k is not None else args.top_k
+
+
+def request_top_p(request: ChatRequest) -> Optional[float]:
+    return request.top_p if request.top_p is not None else args.top_p
+
+
+def request_min_p(request: ChatRequest) -> Optional[float]:
+    return request.min_p if request.min_p is not None else args.min_p
+
+
+def request_seed(request: ChatRequest) -> int:
+    if request.seed is not None:
+        return request.seed
+    if args.seed is not None:
+        return args.seed
+    return random.randint(0, 2**31 - 1)
 
 
 def build_conversation_tokens(worker: Worker, messages: List[ChatMessage]) -> list[int]:
@@ -187,7 +221,9 @@ async def generate_text_stream(worker: Worker, request: ChatRequest) -> AsyncGen
         max_tokens=resolve_max_tokens(request),
         temperature=request_temperature(request),
         top_k=request_top_k(request),
-        seed=random.randint(0, 2**31 - 1),
+        top_p=request_top_p(request),
+        min_p=request_min_p(request),
+        seed=request_seed(request),
     ):
         token = token_column[0]
         if token in {assistant_end, bos}:
@@ -355,5 +391,13 @@ if __name__ == "__main__":
     import uvicorn
 
     logger.info("Starting picoLLM web server")
-    logger.info("Temperature=%s top_k=%s max_tokens=%s", args.temperature, args.top_k, args.max_tokens)
+    logger.info(
+        "Temperature=%s top_k=%s top_p=%s min_p=%s max_tokens=%s seed=%s",
+        args.temperature,
+        args.top_k,
+        args.top_p,
+        args.min_p,
+        args.max_tokens,
+        args.seed,
+    )
     uvicorn.run(app, host=args.host, port=args.port)

@@ -109,22 +109,37 @@ class KVCache:
             self.prev_embedding = other.prev_embedding.expand(self.batch_size, -1, -1).clone()
 
 @torch.inference_mode()
-def sample_next_token(logits, rng, temperature=1.0, top_k=None):
+def sample_next_token(logits, rng, temperature=1.0, top_k=None, top_p=None, min_p=None):
     """Sample a single next token from given logits of shape (B, vocab_size). Returns (B, 1)."""
     assert temperature >= 0.0, "temperature must be non-negative"
     if temperature == 0.0:
         return torch.argmax(logits, dim=-1, keepdim=True)
+
+    filtered_logits = logits / temperature
+
     if top_k is not None and top_k > 0:
-        k = min(top_k, logits.size(-1))
-        vals, idx = torch.topk(logits, k, dim=-1)
-        vals = vals / temperature
-        probs = F.softmax(vals, dim=-1)
-        choice = torch.multinomial(probs, num_samples=1, generator=rng)
-        return idx.gather(1, choice)
-    else:
-        logits = logits / temperature
-        probs = F.softmax(logits, dim=-1)
-        return torch.multinomial(probs, num_samples=1, generator=rng)
+        k = min(top_k, filtered_logits.size(-1))
+        kth_values = torch.topk(filtered_logits, k, dim=-1).values[..., -1, None]
+        filtered_logits = filtered_logits.masked_fill(filtered_logits < kth_values, float("-inf"))
+
+    if top_p is not None and 0.0 < top_p < 1.0:
+        sorted_logits, sorted_indices = torch.sort(filtered_logits, descending=True, dim=-1)
+        sorted_probs = F.softmax(sorted_logits, dim=-1)
+        cumulative_probs = torch.cumsum(sorted_probs, dim=-1)
+        sorted_mask = cumulative_probs > top_p
+        sorted_mask[..., 0] = False
+        filtered_logits = filtered_logits.scatter(1, sorted_indices, sorted_logits.masked_fill(sorted_mask, float("-inf")))
+
+    if min_p is not None and min_p > 0.0:
+        probs = F.softmax(filtered_logits, dim=-1)
+        max_probs = probs.max(dim=-1, keepdim=True).values
+        min_prob_threshold = max_probs * min_p
+        keep_mask = probs >= min_prob_threshold
+        keep_mask = keep_mask | (probs == max_probs)
+        filtered_logits = filtered_logits.masked_fill(~keep_mask, float("-inf"))
+
+    probs = F.softmax(filtered_logits, dim=-1)
+    return torch.multinomial(probs, num_samples=1, generator=rng)
 
 
 class RowState:
@@ -142,7 +157,7 @@ class Engine:
         self.tokenizer = tokenizer # needed for tool use
 
     @torch.inference_mode()
-    def generate(self, tokens, num_samples=1, max_tokens=None, temperature=1.0, top_k=None, seed=42):
+    def generate(self, tokens, num_samples=1, max_tokens=None, temperature=1.0, top_k=None, top_p=None, min_p=None, seed=42):
         """Same as generate, but does single prefill and then clones the KV cache."""
         assert isinstance(tokens, list) and isinstance(tokens[0], int), "expecting list of ints"
         device = self.model.get_device()
@@ -191,7 +206,7 @@ class Engine:
             if all(state.completed for state in row_states):
                 break
 
-            next_ids = sample_next_token(logits, rng, temperature, top_k)  # (B, 1)
+            next_ids = sample_next_token(logits, rng, temperature, top_k, top_p, min_p)  # (B, 1)
             sampled_tokens = next_ids[:, 0].tolist()
 
             token_column = [] # contains the next token id along each row
