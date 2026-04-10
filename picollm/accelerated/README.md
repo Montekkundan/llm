@@ -102,6 +102,12 @@ Upload the runnable picoLLM artifact set from a local `PICOLLM_BASE_DIR` into a 
 python scripts/upload_picollm_model_to_hf.py your-username/your-picollm-backup
 ```
 
+The model-upload helper can also re-download the just-published repo into a fresh temp directory and run one CLI smoke prompt:
+
+```bash
+python scripts/upload_picollm_model_to_hf.py your-username/your-picollm-backup --post-upload-smoke --post-upload-smoke-device-type cpu
+```
+
 Upload the fuller run archive into a dataset repo:
 
 ```bash

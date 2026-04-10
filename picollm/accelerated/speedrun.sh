@@ -56,6 +56,7 @@ upload_to_hf() {
   python scripts/upload_picollm_model_to_hf.py \
     "$repo_id" \
     --base-dir "$PICOLLM_BASE_DIR" \
+    --post-upload-smoke \
     "${visibility_flag[@]}"
 }
 

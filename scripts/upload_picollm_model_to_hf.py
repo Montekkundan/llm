@@ -96,12 +96,44 @@ def write_temp_readme(repo_id: str) -> str:
     return handle.name
 
 
+def run_post_upload_smoke(
+    repo_id: str,
+    prompt: str,
+    max_tokens: int,
+    device_type: str,
+    python_executable: str,
+) -> None:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        command = [
+            python_executable,
+            str(REPO_ROOT / "scripts" / "restore_picollm_from_hf.py"),
+            repo_id,
+            "--base-dir",
+            temp_dir,
+            "--source",
+            "sft",
+            "--prompt",
+            prompt,
+            "--max-tokens",
+            str(max_tokens),
+        ]
+        if device_type:
+            command.extend(["--device-type", device_type])
+        print("Running:", " ".join(command))
+        subprocess.run(command, cwd=REPO_ROOT, check=True)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Upload the runnable picoLLM artifact set to a Hugging Face model repo.")
     parser.add_argument("repo_id", type=str, help="Destination Hugging Face model repo id")
     parser.add_argument("--base-dir", type=Path, default=DEFAULT_BASE_DIR, help="Local PICOLLM_BASE_DIR to publish")
     parser.add_argument("--public", action="store_true", help="Create or update the destination repo as public instead of private")
     parser.add_argument("--dry-run", action="store_true", help="Verify layout and print the upload plan without calling the Hugging Face CLI")
+    parser.add_argument("--post-upload-smoke", action="store_true", help="After upload, restore the repo into a temp dir and run one CLI smoke prompt")
+    parser.add_argument("--post-upload-smoke-prompt", type=str, default="Who are you?", help="Prompt used for the optional post-upload smoke test")
+    parser.add_argument("--post-upload-smoke-max-tokens", type=int, default=48, help="Maximum tokens for the optional post-upload smoke test")
+    parser.add_argument("--post-upload-smoke-device-type", type=str, default="", choices=["", "cpu", "mps", "cuda"], help="Device type for the optional post-upload smoke test")
+    parser.add_argument("--python", type=str, default="python", help="Python executable used for the optional post-upload smoke test")
     args = parser.parse_args()
 
     base_dir = args.base_dir.resolve()
@@ -155,6 +187,15 @@ def main() -> None:
         upload_path(args.repo_id, Path(readme_path), "README.md", "Upload picoLLM restore instructions", token, args.dry_run)
     finally:
         os.unlink(readme_path)
+
+    if args.post_upload_smoke and not args.dry_run:
+        run_post_upload_smoke(
+            repo_id=args.repo_id,
+            prompt=args.post_upload_smoke_prompt,
+            max_tokens=args.post_upload_smoke_max_tokens,
+            device_type=args.post_upload_smoke_device_type,
+            python_executable=args.python,
+        )
 
     print(f"Model repo ready: https://huggingface.co/{args.repo_id}")
 
