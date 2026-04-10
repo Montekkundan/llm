@@ -161,6 +161,12 @@ class GPT(nn.Module):
         self.register_buffer("sin", sin, persistent=False)
 
     @torch.no_grad()
+    def refresh_rotary_embeddings(self):
+        head_dim = self.config.n_embd // self.config.n_head
+        cos, sin = self._precompute_rotary_embeddings(self.rotary_seq_len, head_dim)
+        self.cos, self.sin = cos, sin
+
+    @torch.no_grad()
     def init_weights(self):
         """
         Initialize the full model in this one function for maximum clarity.
@@ -202,9 +208,7 @@ class GPT(nn.Module):
             if block.attn.ve_gate is not None:
                 torch.nn.init.uniform_(block.attn.ve_gate.weight, 0.0, 0.02)
 
-        head_dim = self.config.n_embd // self.config.n_head
-        cos, sin = self._precompute_rotary_embeddings(self.rotary_seq_len, head_dim)
-        self.cos, self.sin = cos, sin
+        self.refresh_rotary_embeddings()
 
         if COMPUTE_DTYPE != torch.float16:
             self.transformer.wte.to(dtype=COMPUTE_DTYPE)

@@ -85,7 +85,7 @@ def build_model(checkpoint_dir, step, device, phase):
     with torch.device("meta"):
         model = GPT(model_config)
     model.to_empty(device=device)
-    model.init_weights() # note: this is dumb, but we need to init the rotary embeddings. TODO: fix model re-init
+    model.refresh_rotary_embeddings()
     model.load_state_dict(model_data, strict=True, assign=True)
     if phase == "eval":
         model.eval()
