@@ -68,13 +68,12 @@ For the final lecture sequence:
 
 ## Acknowledgements
 
-- This project is strongly inspired by Andrej Karpathy's [`nanochat`](https://github.com/karpathy/nanochat).
-- This project also draws heavily on Sebastian Raschka's [`LLMs-from-scratch`](https://github.com/rasbt/LLMs-from-scratch).
+- This project draws heavily on Sebastian Raschka's [`LLMs-from-scratch`](https://github.com/rasbt/LLMs-from-scratch).
 - Thank you to [Hugging Face](https://huggingface.co/) for the open tooling and datasets ecosystem that make projects like this easier to teach and build.
 
 ## Cite
 
-If you want to cite the reference repos behind this workflow, cite both Raschka and Karpathy:
+If you want to cite the reference material behind this workflow, cite Raschka for the concept-first notebook lineage and this repo for the picoLLM product-track path:
 
 ```yaml
 cff-version: 1.2.0
@@ -95,16 +94,6 @@ keywords:
   - PyTorch
   - machine learning
   - deep learning
-```
-
-```bibtex
-@misc{nanochat,
-  author = {Andrej Karpathy},
-  title = {nanochat: The best ChatGPT that $100 can buy},
-  year = {2025},
-  publisher = {GitHub},
-  url = {https://github.com/karpathy/nanochat}
-}
 ```
 
 If you want to cite this repo itself, use:

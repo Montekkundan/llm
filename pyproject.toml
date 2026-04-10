@@ -1,7 +1,7 @@
 [project]
-name = "llm"
+name = "picollm"
 version = "0.1.0"
-description = "Teaching materials and runnable demos for an LLM concepts course"
+description = "picoLLM from-scratch training, inference, and chat tools"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -29,6 +29,19 @@ dependencies = [
     "uvicorn>=0.35.0",
     "wandb>=0.23.0",
 ]
+
+[project.scripts]
+picollm-chat = "picollm.accelerated.chat.cli:main"
+picollm-web = "picollm.accelerated.chat.web:main"
+picollm-identity-smoke = "picollm.accelerated.chat.identity_smoke:main"
+picollm-speedrun-doctor = "picollm.accelerated.speedrun_doctor:main"
+picollm-restore-from-hf = "picollm.accelerated.entrypoints:restore_from_hf"
+picollm-upload-model = "picollm.accelerated.entrypoints:upload_model_to_hf"
+picollm-upload-archive = "picollm.accelerated.entrypoints:upload_archive_to_hf"
+picollm-release = "picollm.accelerated.entrypoints:release_to_hf"
+picollm-local-checks = "picollm.accelerated.entrypoints:run_local_checks"
+picollm-print-env = "picollm.accelerated.entrypoints:print_env"
+picollm-hf-smoke = "picollm.accelerated.entrypoints:smoke_model_repo"
 
 [dependency-groups]
 dev = [

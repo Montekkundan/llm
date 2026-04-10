@@ -2,6 +2,16 @@
 
 This package contains the single serious training and inference path for `picollm`.
 
+Docs:
+
+- [docs/local_smoke.md](./docs/local_smoke.md)
+- [docs/branding_identity.md](./docs/branding_identity.md)
+- [docs/rerun_sft_only.md](./docs/rerun_sft_only.md)
+- [docs/hosted_assets.md](./docs/hosted_assets.md)
+- [docs/hf_backup_strategy.md](./docs/hf_backup_strategy.md)
+- [docs/artifact_types.md](./docs/artifact_types.md)
+- [docs/release_naming.md](./docs/release_naming.md)
+
 Default artifact root:
 
 - `artifacts/picollm`
@@ -28,6 +38,8 @@ Notes:
 
 - `WANDB_ENTITY` is required for any non-dummy W&B run in this repo.
 - `HF_TOKEN` is recommended for Hugging Face downloads and rate limits. Public datasets may still work without it.
+- `uv sync --extra gpu` is the CUDA path.
+- `uv sync --extra cpu` is the local CPU or macOS path.
 - `speedrun.sh` is the single reference script. It now auto-detects visible CUDA GPU count, memory, capability, FA3/FP8 eligibility, batch size, activation checkpointing, and a safer attention window pattern.
 - `speedrun.sh` now starts with a distributed preflight that does a small synthetic forward/backward/optimizer smoke test on the same FA3/FP8/compile stack before dataset work begins.
 - On Hopper-class boxes it keeps the fast defaults. On non-Hopper CUDA boxes it automatically disables FP8, forces SDPA, and switches to `window-pattern=L` so the run is slower but materially more portable.
@@ -37,6 +49,7 @@ Notes:
 - `HF_UPLOAD_REPO_ID` is optional. If set, the speedrun uploads the final runtime artifacts to a Hugging Face model repo.
 - `HF_ARCHIVE_REPO_ID` is optional. If set, the speedrun also uploads the fuller run archive to a Hugging Face dataset repo.
 - `HF_UPLOAD_PRIVATE=1` keeps that repo private by default.
+- `HF_PERIODIC_SYNC=1` enables the optional archive-sync loop during long runs.
 
 Optional manual overrides if you need to pin a different configuration:
 
@@ -49,6 +62,10 @@ Optional manual overrides if you need to pin a different configuration:
 - `PICOLLM_IDENTITY_CONVERSATIONS_FILE`
 - `PICOLLM_IDENTITY_CONVERSATIONS_URL`
 - `PICOLLM_IDENTITY_CONVERSATIONS_MANIFEST`
+- `PICOLLM_BASE_SAVE_EVERY`
+- `HF_PERIODIC_SYNC`
+- `HF_SYNC_INTERVAL_SECONDS`
+- `HF_SYNC_MIN_FILE_AGE_SECONDS`
 
 ## Full Run
 
@@ -68,6 +85,19 @@ Smoke-test a running accelerated backend:
 
 ```bash
 python scripts/deployment/smoke_test_accelerated.py
+```
+
+Print the recommended local environment commands for this machine:
+
+```bash
+python scripts/print_picollm_env.py
+```
+
+Run the standard local regression bundle for CPU, MPS, or CUDA:
+
+```bash
+python scripts/run_picollm_local_checks.py --device mps
+python scripts/run_picollm_local_checks.py --device cuda
 ```
 
 Run the branding smoke test against the latest SFT checkpoint:
@@ -94,6 +124,12 @@ Restore a published picoLLM model repo into a local artifact directory and run a
 
 ```bash
 python scripts/restore_picollm_from_hf.py your-username/your-picollm-backup --device-type cpu
+```
+
+Or use the lighter local model-repo smoke helper that downloads only the minimal inference bundle:
+
+```bash
+python scripts/smoke_picollm_model_repo.py your-username/your-picollm-backup --device-type cpu
 ```
 
 Upload the runnable picoLLM artifact set from a local `PICOLLM_BASE_DIR` into a model repo:

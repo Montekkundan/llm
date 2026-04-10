@@ -75,7 +75,7 @@ def generate_answer(engine: "Engine", tokenizer, prompt: str, max_tokens: int, s
     return tokenizer.decode(generated).strip()
 
 
-if __name__ == "__main__":
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run branding smoke checks against the latest picoLLM checkpoint")
     parser.add_argument("-i", "--source", type=str, default="sft", choices=["base", "sft"], help="Source of the model: base|sft")
     parser.add_argument("-g", "--model-tag", type=str, default=None, help="Model tag to load")
@@ -91,13 +91,17 @@ if __name__ == "__main__":
     )
     parser.add_argument("--dataset-only", action="store_true", help="Only validate the identity dataset and skip model loading")
     parser.add_argument("--skip-dataset-check", action="store_true", help="Skip the dataset branding scan")
-    args = parser.parse_args()
+    return parser
+
+
+def main(argv=None) -> int:
+    args = build_parser().parse_args(argv)
 
     if not args.skip_dataset_check:
         dataset_check(args.data_file)
 
     if args.dataset_only:
-        raise SystemExit(0)
+        return 0
 
     from picollm.accelerated.checkpoint_manager import load_model
     from picollm.accelerated.common import autodetect_device_type, compute_init
@@ -121,3 +125,8 @@ if __name__ == "__main__":
         raise SystemExit("Branding smoke test failed:\n" + "\n".join(failures))
 
     print("identity smoke: ok")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
