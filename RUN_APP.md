@@ -13,6 +13,11 @@ Useful checks:
 - `curl http://127.0.0.1:8000/metadata`
 - `uv run python scripts/deployment/smoke_test.py`
 
+Accelerated picoLLM product-track check:
+
+- Run `python -m picollm.accelerated.chat.web`
+- Then run `python scripts/deployment/smoke_test_accelerated.py`
+
 Product-track alternatives:
 
 - CLI: `uv run python scripts/cli_and_web_chat/chat_cli.py`

@@ -59,6 +59,12 @@ Web UI instead of CLI:
 bash picollm/accelerated/speedrun.sh web
 ```
 
+Smoke-test a running accelerated backend:
+
+```bash
+python scripts/deployment/smoke_test_accelerated.py
+```
+
 `speedrun.sh` is the single reference script. It goes from dataset/tokenizer work through pretraining, pretrain eval, SFT, chat eval, report generation, optional Hugging Face backup, and then opens the CLI or web chat UI.
 
 At launch it prints the detected hardware summary and the chosen speedrun settings so you can see exactly what it decided for the current machine.
@@ -97,3 +103,4 @@ Main entrypoints:
 - `python -m picollm.accelerated.chat.eval -i sft`
 - `python -m picollm.accelerated.chat.cli`
 - `python -m picollm.accelerated.chat.web`
+- `python scripts/deployment/smoke_test_accelerated.py`
