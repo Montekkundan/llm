@@ -176,6 +176,7 @@ if [[ "$PICOLLM_ENABLE_FP8" == "1" ]]; then
 fi
 
 print_stage "Preflight"
+python -m picollm.accelerated.speedrun_doctor
 torchrun --standalone --nproc_per_node="$PICOLLM_NPROC_PER_NODE" -m picollm.accelerated.pretrain.preflight -- \
   --depth=24 \
   --device-batch-size="$PICOLLM_DEVICE_BATCH_SIZE" \

@@ -120,6 +120,8 @@ Every accelerated speedrun now writes `run_manifest.json` into `PICOLLM_BASE_DIR
 
 At launch it prints the detected hardware summary and the chosen speedrun settings so you can see exactly what it decided for the current machine.
 
+Before the heavy training work starts, `speedrun.sh` now runs `python -m picollm.accelerated.speedrun_doctor` to validate CUDA visibility, HF upload prerequisites, artifact-dir writability, free disk space, and a coarse free-VRAM check for the chosen config.
+
 ## Optional Hugging Face Backup
 
 If `HF_UPLOAD_REPO_ID` is set, `speedrun.sh` will upload a curated set of runtime artifacts to that model repo at the end of the run:
