@@ -209,6 +209,9 @@ echo "Speedrun settings: $PICOLLM_SETTINGS_SUMMARY"
 if [[ -n "$HF_UPLOAD_REPO_ID" ]]; then
   echo "HF upload target (model repo): $HF_UPLOAD_REPO_ID"
 fi
+if [[ -n "${PICOLLM_IDENTITY_CONVERSATIONS_URL:-}" ]]; then
+  echo "Hosted identity mirror: $PICOLLM_IDENTITY_CONVERSATIONS_URL"
+fi
 
 FP8_ARGS=()
 if [[ "$PICOLLM_ENABLE_FP8" == "1" ]]; then
@@ -252,7 +255,16 @@ torchrun --standalone --nproc_per_node="$PICOLLM_NPROC_PER_NODE" -m picollm.acce
   --device-batch-size="$PICOLLM_DEVICE_BATCH_SIZE"
 
 IDENTITY_SOURCE="${PICOLLM_IDENTITY_CONVERSATIONS_FILE:-$REPO_ROOT/picollm/accelerated/data/identity_conversations.jsonl}"
-if [[ ! -f "$IDENTITY_SOURCE" ]]; then
+IDENTITY_MANIFEST="${PICOLLM_IDENTITY_CONVERSATIONS_MANIFEST:-$REPO_ROOT/picollm/accelerated/data/identity_conversations.manifest.json}"
+IDENTITY_URL="${PICOLLM_IDENTITY_CONVERSATIONS_URL:-}"
+if [[ -n "$IDENTITY_URL" ]]; then
+  IDENTITY_SOURCE="$PICOLLM_BASE_DIR/identity_sources/identity_conversations.jsonl"
+  echo "Fetching identity dataset from hosted mirror: $IDENTITY_URL"
+  python scripts/verify_identity_asset.py \
+    --manifest "$IDENTITY_MANIFEST" \
+    --hosted-url "$IDENTITY_URL" \
+    --download-to "$IDENTITY_SOURCE"
+elif [[ ! -f "$IDENTITY_SOURCE" ]]; then
   echo "Missing identity conversations file: $IDENTITY_SOURCE" >&2
   echo "Set PICOLLM_IDENTITY_CONVERSATIONS_FILE to override, or commit the repo-local picoLLM identity file." >&2
   exit 1

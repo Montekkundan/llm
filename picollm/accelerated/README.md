@@ -45,6 +45,8 @@ Optional manual overrides if you need to pin a different configuration:
 - `PICOLLM_ACTIVATION_CHECKPOINTING`
 - `PICOLLM_WINDOW_PATTERN`
 - `PICOLLM_IDENTITY_CONVERSATIONS_FILE`
+- `PICOLLM_IDENTITY_CONVERSATIONS_URL`
+- `PICOLLM_IDENTITY_CONVERSATIONS_MANIFEST`
 
 ## Full Run
 
@@ -77,6 +79,13 @@ Verify the canonical identity dataset locally, or compare it to the hosted Cloud
 ```bash
 python scripts/verify_identity_asset.py --local-only
 python scripts/verify_identity_asset.py
+```
+
+If you want `speedrun.sh` to consume the hosted identity mirror instead of the repo-local file, set the hosted URL and keep the manifest path available so the download is verified before SFT starts:
+
+```bash
+export PICOLLM_IDENTITY_CONVERSATIONS_URL=https://assets.montek.dev/identity_conversations.jsonl
+bash picollm/accelerated/speedrun.sh cli
 ```
 
 `speedrun.sh` is the single reference script. It goes from dataset/tokenizer work through pretraining, pretrain eval, SFT, chat eval, report generation, optional Hugging Face backup, and then opens the CLI or web chat UI.

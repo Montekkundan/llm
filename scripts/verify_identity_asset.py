@@ -45,14 +45,23 @@ def verify_local_file(local_file: Path, expected_sha256: str, expected_rows: int
 
 
 def verify_hosted_asset(url: str, local_data: bytes, expected_sha256: str, expected_rows: int) -> None:
+    data = fetch_hosted_asset(url)
+    verify_hosted_bytes(data, expected_sha256, expected_rows, url)
+    if data != local_data:
+        raise SystemExit("Hosted identity asset bytes differ from the canonical repo-local file despite matching metadata")
+
+
+def fetch_hosted_asset(url: str) -> bytes:
     try:
         with urlopen(url) as response:
-            data = response.read()
+            return response.read()
     except HTTPError as exc:
         raise SystemExit(f"Hosted identity asset returned HTTP {exc.code}: {url}") from exc
     except URLError as exc:
         raise SystemExit(f"Unable to fetch hosted identity asset: {url} ({exc.reason})") from exc
 
+
+def verify_hosted_bytes(data: bytes, expected_sha256: str, expected_rows: int, url: str) -> None:
     actual_sha256 = sha256_bytes(data)
     actual_rows = count_rows(data)
 
@@ -60,10 +69,7 @@ def verify_hosted_asset(url: str, local_data: bytes, expected_sha256: str, expec
         raise SystemExit(f"Hosted identity asset checksum mismatch: expected {expected_sha256}, got {actual_sha256}")
     if actual_rows != expected_rows:
         raise SystemExit(f"Hosted identity asset row-count mismatch: expected {expected_rows}, got {actual_rows}")
-    if data != local_data:
-        raise SystemExit("Hosted identity asset bytes differ from the canonical repo-local file despite matching metadata")
-
-    print(f"hosted: ok ({actual_rows} rows, sha256={actual_sha256})")
+    print(f"hosted: ok ({actual_rows} rows, sha256={actual_sha256}, url={url})")
 
 
 def main() -> None:
@@ -71,6 +77,7 @@ def main() -> None:
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST, help="Path to identity dataset manifest JSON")
     parser.add_argument("--local-file", type=Path, default=DEFAULT_DATA_FILE, help="Path to the canonical local identity dataset")
     parser.add_argument("--hosted-url", type=str, default="", help="Hosted identity asset URL; defaults to the manifest URL")
+    parser.add_argument("--download-to", type=Path, default=None, help="Download the hosted asset to this path after verification")
     parser.add_argument("--local-only", action="store_true", help="Only verify the local canonical dataset")
     args = parser.parse_args()
 
@@ -79,12 +86,28 @@ def main() -> None:
     expected_rows = manifest["row_count"]
     hosted_url = args.hosted_url or manifest.get("hosted_mirror", {}).get("url", "")
 
-    local_data = verify_local_file(args.local_file, expected_sha256, expected_rows)
+    local_data = None
+    if args.local_file.exists():
+        local_data = verify_local_file(args.local_file, expected_sha256, expected_rows)
+    elif not args.download_to:
+        raise SystemExit(f"Local identity dataset does not exist: {args.local_file}")
+
     if args.local_only:
         return
     if not hosted_url:
         raise SystemExit("No hosted URL provided and none was found in the manifest")
 
+    if args.download_to:
+        data = fetch_hosted_asset(hosted_url)
+        verify_hosted_bytes(data, expected_sha256, expected_rows, hosted_url)
+        if local_data is not None and data != local_data:
+            raise SystemExit("Hosted identity asset bytes differ from the canonical repo-local file despite matching metadata")
+        args.download_to.parent.mkdir(parents=True, exist_ok=True)
+        args.download_to.write_bytes(data)
+        print(f"downloaded: ok ({args.download_to})")
+        return
+
+    assert local_data is not None
     verify_hosted_asset(hosted_url, local_data, expected_sha256, expected_rows)
 
 
