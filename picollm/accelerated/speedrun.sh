@@ -24,6 +24,7 @@ mkdir -p "$PICOLLM_BASE_DIR"
 WANDB_RUN="${WANDB_RUN:-dummy}"
 WANDB_ENTITY="${WANDB_ENTITY:-}"
 HF_UPLOAD_REPO_ID="${HF_UPLOAD_REPO_ID:-}"
+HF_ARCHIVE_REPO_ID="${HF_ARCHIVE_REPO_ID:-}"
 HF_UPLOAD_PRIVATE="${HF_UPLOAD_PRIVATE:-1}"
 export PYTHONUNBUFFERED=1
 
@@ -53,6 +54,21 @@ upload_to_hf() {
   fi
 
   python scripts/upload_picollm_model_to_hf.py \
+    "$repo_id" \
+    --base-dir "$PICOLLM_BASE_DIR" \
+    "${visibility_flag[@]}"
+}
+
+upload_archive_to_hf() {
+  local repo_id="$1"
+  local visibility_flag=()
+  : "${HF_TOKEN:?Set HF_TOKEN to upload artifacts to the Hugging Face Hub}"
+
+  if [[ "$HF_UPLOAD_PRIVATE" == "0" || "$HF_UPLOAD_PRIVATE" == "false" ]]; then
+    visibility_flag+=(--public)
+  fi
+
+  python scripts/upload_picollm_archive_to_hf.py \
     "$repo_id" \
     --base-dir "$PICOLLM_BASE_DIR" \
     "${visibility_flag[@]}"
@@ -104,6 +120,9 @@ print_run_summary() {
   if [[ -n "$HF_UPLOAD_REPO_ID" ]]; then
     echo "HF model repo: https://huggingface.co/$HF_UPLOAD_REPO_ID"
   fi
+  if [[ -n "$HF_ARCHIVE_REPO_ID" ]]; then
+    echo "HF archive dataset: https://huggingface.co/datasets/$HF_ARCHIVE_REPO_ID"
+  fi
 }
 
 command -v uv >/dev/null 2>&1 || curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -132,6 +151,12 @@ echo "Speedrun hardware: $PICOLLM_HARDWARE_SUMMARY"
 echo "Speedrun settings: $PICOLLM_SETTINGS_SUMMARY"
 if [[ -n "$HF_UPLOAD_REPO_ID" ]]; then
   echo "HF upload target (model repo): $HF_UPLOAD_REPO_ID"
+fi
+if [[ -n "$HF_ARCHIVE_REPO_ID" ]]; then
+  echo "HF upload target (archive dataset): $HF_ARCHIVE_REPO_ID"
+fi
+if [[ -n "$HF_UPLOAD_REPO_ID" && -n "$HF_ARCHIVE_REPO_ID" ]]; then
+  echo "HF destinations: model repo is for runnable artifacts, archive dataset is for fuller run history."
 fi
 if [[ -n "${PICOLLM_IDENTITY_CONVERSATIONS_URL:-}" ]]; then
   echo "Hosted identity mirror: $PICOLLM_IDENTITY_CONVERSATIONS_URL"
@@ -211,9 +236,14 @@ torchrun --standalone --nproc_per_node="$PICOLLM_NPROC_PER_NODE" -m picollm.acce
 print_stage "Report"
 python -m picollm.accelerated.report generate
 
-if [[ -n "$HF_UPLOAD_REPO_ID" ]]; then
+if [[ -n "$HF_UPLOAD_REPO_ID" || -n "$HF_ARCHIVE_REPO_ID" ]]; then
   print_stage "HF Upload"
+fi
+if [[ -n "$HF_UPLOAD_REPO_ID" ]]; then
   upload_to_hf "$HF_UPLOAD_REPO_ID"
+fi
+if [[ -n "$HF_ARCHIVE_REPO_ID" ]]; then
+  upload_archive_to_hf "$HF_ARCHIVE_REPO_ID"
 fi
 
 print_run_summary

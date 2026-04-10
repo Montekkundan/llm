@@ -20,6 +20,7 @@ export WANDB_ENTITY=your-wandb-entity
 export HF_TOKEN=...
 export PICOLLM_BASE_DIR=/abs/path/to/artifacts/picollm
 export HF_UPLOAD_REPO_ID=your-username/your-picollm-backup
+export HF_ARCHIVE_REPO_ID=your-username/your-picollm-archive
 export HF_UPLOAD_PRIVATE=1
 ```
 
@@ -34,6 +35,7 @@ Notes:
 - The default SFT identity data now comes from the repo-local `picollm/accelerated/data/identity_conversations.jsonl` instead of downloading Karpathy's nanochat identity file.
 - The canonical identity dataset now ships with `picollm/accelerated/data/identity_conversations.manifest.json`, which records the row count, SHA-256 checksum, schema contract, and intended hosted mirror URL.
 - `HF_UPLOAD_REPO_ID` is optional. If set, the speedrun uploads the final runtime artifacts to a Hugging Face model repo.
+- `HF_ARCHIVE_REPO_ID` is optional. If set, the speedrun also uploads the fuller run archive to a Hugging Face dataset repo.
 - `HF_UPLOAD_PRIVATE=1` keeps that repo private by default.
 
 Optional manual overrides if you need to pin a different configuration:
@@ -98,6 +100,12 @@ Upload the runnable picoLLM artifact set from a local `PICOLLM_BASE_DIR` into a 
 
 ```bash
 python scripts/upload_picollm_model_to_hf.py your-username/your-picollm-backup
+```
+
+Upload the fuller run archive into a dataset repo:
+
+```bash
+python scripts/upload_picollm_archive_to_hf.py your-username/your-picollm-archive
 ```
 
 `speedrun.sh` is the single reference script. It goes from dataset/tokenizer work through pretraining, pretrain eval, SFT, chat eval, report generation, optional Hugging Face backup, and then opens the CLI or web chat UI.
