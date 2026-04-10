@@ -1,0 +1,33 @@
+{
+  "dependencies": {
+    "eval_bundle": {
+      "kind": "small_hosted_asset",
+      "local_filename": "eval_bundle.zip",
+      "mirror_url": "https://assets.montek.dev/eval_bundle.zip",
+      "fallback_url": "https://karpathy-public.s3.us-west-2.amazonaws.com/eval_bundle.zip",
+      "notes": [
+        "Mirror this file under picoLLM control when available.",
+        "Until the mirror exists, the runtime falls back to the historical public S3 URL."
+      ]
+    },
+    "climbmix_400b_shuffle": {
+      "kind": "huggingface_dataset_prefix",
+      "repo_id": "karpathy/climbmix-400b-shuffle",
+      "resolve_base_url": "https://huggingface.co/datasets/karpathy/climbmix-400b-shuffle/resolve/main",
+      "notes": [
+        "This dataset is intentionally not mirrored into picoLLM-owned hosting by default because the shard set is large.",
+        "The manifest keeps the exact upstream source explicit without bundling the full dataset into release artifacts."
+      ]
+    },
+    "english_words_alpha": {
+      "kind": "small_hosted_asset",
+      "local_filename": "words_alpha.txt",
+      "mirror_url": "https://assets.montek.dev/words_alpha.txt",
+      "fallback_url": "https://raw.githubusercontent.com/dwyl/english-words/refs/heads/master/words_alpha.txt",
+      "notes": [
+        "This is used by the spelling tasks.",
+        "The runtime prefers a picoLLM-owned mirror first and falls back to the upstream raw GitHub file."
+      ]
+    }
+  }
+}

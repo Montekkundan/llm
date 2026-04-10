@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+import json
 import urllib.request
 from pathlib import Path
 
@@ -92,6 +93,27 @@ def get_assets_dir():
     return get_repo_root() / "picollm" / "accelerated"
 
 
+def get_public_dependency_manifest_path():
+    override = os.environ.get("PICOLLM_PUBLIC_DEPENDENCY_MANIFEST")
+    if override:
+        return Path(override)
+    return get_assets_dir() / "data" / "public_dependencies.manifest.json"
+
+
+def load_public_dependency_manifest():
+    manifest_path = get_public_dependency_manifest_path()
+    with open(manifest_path, "r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def get_public_dependency(name: str):
+    manifest = load_public_dependency_manifest()
+    dependencies = manifest.get("dependencies", {})
+    if name not in dependencies:
+        raise KeyError(f"Unknown public dependency: {name}")
+    return dependencies[name]
+
+
 def get_base_dir():
     base_dir = os.environ.get("PICOLLM_BASE_DIR")
     if not base_dir:
@@ -128,6 +150,29 @@ def download_file_with_lock(url, filename, postprocess_fn=None):
             postprocess_fn(file_path)
 
     return file_path
+
+
+def download_named_public_dependency(name: str, postprocess_fn=None):
+    dependency = get_public_dependency(name)
+    filename = dependency["local_filename"]
+    urls = []
+    if dependency.get("mirror_url"):
+        urls.append(dependency["mirror_url"])
+    if dependency.get("fallback_url"):
+        urls.append(dependency["fallback_url"])
+    if not urls:
+        raise RuntimeError(f"Public dependency {name} does not define any download URLs")
+
+    errors = []
+    for url in urls:
+        try:
+            return download_file_with_lock(url, filename, postprocess_fn=postprocess_fn)
+        except Exception as exc:  # noqa: BLE001 - keep fallback attempts simple for runtime download paths
+            errors.append(f"{url}: {exc}")
+            print(f"Download failed for {name} from {url}: {exc}")
+
+    joined = "\n".join(errors)
+    raise RuntimeError(f"Failed to download public dependency {name} from all configured URLs:\n{joined}")
 
 
 def print0(s="", **kwargs):

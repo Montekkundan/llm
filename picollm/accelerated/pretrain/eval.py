@@ -10,7 +10,14 @@ import tempfile
 import argparse
 import torch
 
-from picollm.accelerated.common import compute_init, compute_cleanup, print0, get_base_dir, autodetect_device_type, download_file_with_lock
+from picollm.accelerated.common import (
+    compute_init,
+    compute_cleanup,
+    print0,
+    get_base_dir,
+    autodetect_device_type,
+    download_named_public_dependency,
+)
 from picollm.accelerated.tokenizer import HuggingFaceTokenizer, get_token_bytes
 from picollm.accelerated.checkpoint_manager import load_model
 from picollm.accelerated.core_eval import evaluate_task
@@ -64,9 +71,6 @@ def get_hf_token_bytes(tokenizer, device="cpu"):
     return token_bytes
 
 
-EVAL_BUNDLE_URL = "https://karpathy-public.s3.us-west-2.amazonaws.com/eval_bundle.zip"
-
-
 def place_eval_bundle(file_path):
     """Unzip eval_bundle.zip and place it in the base directory."""
     base_dir = get_base_dir()
@@ -87,7 +91,7 @@ def evaluate_core(model, tokenizer, device, max_per_task=-1):
     base_dir = get_base_dir()
     eval_bundle_dir = os.path.join(base_dir, "eval_bundle")
     if not os.path.exists(eval_bundle_dir):
-        download_file_with_lock(EVAL_BUNDLE_URL, "eval_bundle.zip", postprocess_fn=place_eval_bundle)
+        download_named_public_dependency("eval_bundle", postprocess_fn=place_eval_bundle)
 
     config_path = os.path.join(eval_bundle_dir, "core.yaml")
     data_base_path = os.path.join(eval_bundle_dir, "eval_data")

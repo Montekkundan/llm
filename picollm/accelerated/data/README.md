@@ -8,6 +8,10 @@ Canonical manifest:
 
 - `identity_conversations.manifest.json`
 
+Public dependency manifest:
+
+- `public_dependencies.manifest.json`
+
 Schema:
 
 - one JSON array per line
@@ -26,3 +30,4 @@ Integrity and hosting:
 - the manifest records the canonical row count and SHA-256 checksum
 - the intended hosted mirror is `https://assets.montek.dev/identity_conversations.jsonl`
 - after upload, verify the hosted copy with `python scripts/verify_identity_asset.py`
+- small runtime dependencies that are not checked into the repo are tracked in `public_dependencies.manifest.json`

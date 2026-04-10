@@ -1,10 +1,9 @@
 import re
 import random
 from picollm.accelerated.tasks.common import Task
-from picollm.accelerated.common import download_file_with_lock
+from picollm.accelerated.common import download_named_public_dependency
 
 LETTERS = "abcdefghijklmnopqrstuvwxyz"
-WORD_LIST_URL = "https://raw.githubusercontent.com/dwyl/english-words/refs/heads/master/words_alpha.txt"
 TEST_RANDOM_SEED_OFFSET = 10_000_000
 
 ANSWER_RE = re.compile(r"#### (\-?[0-9\.\,]+)")
@@ -80,8 +79,7 @@ class SpellingBee(Task):
         assert split in ["train", "test"], "SpellingBee split must be train|test"
         self.size = size
         self.split = split
-        filename = WORD_LIST_URL.split("/")[-1]
-        word_list_path = download_file_with_lock(WORD_LIST_URL, filename)
+        word_list_path = download_named_public_dependency("english_words_alpha")
         with open(word_list_path, 'r', encoding='utf-8') as f:
             words = [line.strip() for line in f]
         self.words = words
@@ -178,8 +176,7 @@ class SimpleSpelling(Task):
         assert split in ["train", "test"], "SpellingBee split must be train|test"
         self.size = size
         self.split = split
-        filename = WORD_LIST_URL.split("/")[-1]
-        word_list_path = download_file_with_lock(WORD_LIST_URL, filename)
+        word_list_path = download_named_public_dependency("english_words_alpha")
         with open(word_list_path, 'r', encoding='utf-8') as f:
             words = [line.strip() for line in f]
         rng = random.Random(42)
@@ -226,5 +223,4 @@ if __name__ == "__main__":
                 print(f"{part['text']}>>", end='')
         print()
         print("-" * 100)
-
 

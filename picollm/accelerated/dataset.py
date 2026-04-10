@@ -5,10 +5,10 @@ import requests
 import pyarrow.parquet as pq
 from multiprocessing import Pool
 
-from picollm.accelerated.common import get_base_dir
+from picollm.accelerated.common import get_base_dir, get_public_dependency
 
 
-BASE_URL = "https://huggingface.co/datasets/karpathy/climbmix-400b-shuffle/resolve/main"
+BASE_URL = get_public_dependency("climbmix_400b_shuffle")["resolve_base_url"]
 MAX_SHARD = 6542 # the last datashard is shard_06542.parquet
 index_to_filename = lambda index: f"shard_{index:05d}.parquet" # format of the filenames
 base_dir = get_base_dir()
@@ -121,6 +121,7 @@ if __name__ == "__main__":
 
     print(f"Downloading {len(ids_to_download)} shards using {args.num_workers} workers...")
     print(f"Target directory: {DATA_DIR}")
+    print(f"Source base URL: {BASE_URL}")
     print()
     with Pool(processes=args.num_workers) as pool:
         results = pool.map(download_single_file, ids_to_download)
