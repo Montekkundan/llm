@@ -102,6 +102,12 @@ Upload the runnable picoLLM artifact set from a local `PICOLLM_BASE_DIR` into a 
 python scripts/upload_picollm_model_to_hf.py your-username/your-picollm-backup
 ```
 
+That model repo is now inference-focused:
+
+- it includes tokenizer files, model checkpoints, metadata, reports, and the identity file when present
+- it intentionally excludes optimizer shards
+- it is meant for restore + chat, not exact resume-training
+
 The model-upload helper can also re-download the just-published repo into a fresh temp directory and run one CLI smoke prompt:
 
 ```bash
@@ -112,6 +118,18 @@ Upload the fuller run archive into a dataset repo:
 
 ```bash
 python scripts/upload_picollm_archive_to_hf.py your-username/your-picollm-archive
+```
+
+That archive repo is the resume-oriented path:
+
+- it keeps the fuller checkpoint trees, including optimizer shards when present
+- it is the right place for preservation, debugging, and training-state backups
+- it stays separate from the lighter inference repo on purpose
+
+Release both repos with a consistent versioned name, and optionally mirror the latest inference bundle into a stable alias repo:
+
+```bash
+python scripts/release_picollm_to_hf.py --namespace your-username --release-name april-h200-run --latest-repo-id your-username/picollm-latest
 ```
 
 Every accelerated speedrun now writes `run_manifest.json` into `PICOLLM_BASE_DIR` before the upload step so the archive has a machine-readable record of the repo commit, torch version, chosen speedrun config, identity source, and latest base/SFT checkpoint pointers.
@@ -131,8 +149,12 @@ If `HF_UPLOAD_REPO_ID` is set, `speedrun.sh` will upload a curated set of runtim
 - `chatsft_checkpoints/`
 - `report/` if present
 - `identity_conversations.jsonl` if present
+- `run_manifest.json` if present
+- `picollm_model_metadata.json`
 
-It does not upload the downloaded ClimbMix parquet shards under `base_data_climbmix/`.
+It does not upload the downloaded ClimbMix parquet shards under `base_data_climbmix/`, and it now filters optimizer shards out of the inference bundle by design.
+
+If `HF_ARCHIVE_REPO_ID` is also set, the dataset repo is the place for resume-training artifacts and fuller checkpoint history.
 
 To restore those artifacts later onto another machine:
 
