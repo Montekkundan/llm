@@ -218,10 +218,37 @@ def build_conversation_tokens(worker: Worker, messages: List[ChatMessage]) -> li
     return tokens
 
 
-async def generate_text_stream(worker: Worker, request: ChatRequest) -> AsyncGenerator[str, None]:
+def validate_generation_budget(worker: Worker, request: ChatRequest) -> list[int]:
+    prompt_tokens = build_conversation_tokens(worker, request.messages)
+    context_window = worker.engine.model.config.sequence_len
+    prompt_length = len(prompt_tokens)
+    requested_max_tokens = resolve_max_tokens(request)
+    remaining_tokens = context_window - prompt_length
+
+    if remaining_tokens <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Conversation is {prompt_length} tokens after formatting, which exceeds the "
+                f"{context_window}-token context window. Start a new conversation or shorten the history."
+            ),
+        )
+
+    if requested_max_tokens > remaining_tokens:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Requested max_tokens={requested_max_tokens}, but only {remaining_tokens} tokens remain in the "
+                f"{context_window}-token context window. Reduce max_tokens or shorten the conversation."
+            ),
+        )
+
+    return prompt_tokens
+
+
+async def generate_text_stream(worker: Worker, request: ChatRequest, prompt_tokens: list[int]) -> AsyncGenerator[str, None]:
     assistant_end = worker.tokenizer.encode_special("<|assistant_end|>")
     bos = worker.tokenizer.get_bos_token_id()
-    prompt_tokens = build_conversation_tokens(worker, request.messages)
 
     accumulated_tokens: list[int] = []
     last_clean_text = ""
@@ -248,9 +275,9 @@ async def generate_text_stream(worker: Worker, request: ChatRequest) -> AsyncGen
             yield new_text
 
 
-async def collect_response(worker: Worker, request: ChatRequest) -> str:
+async def collect_response(worker: Worker, request: ChatRequest, prompt_tokens: list[int]) -> str:
     chunks: list[str] = []
-    async for piece in generate_text_stream(worker, request):
+    async for piece in generate_text_stream(worker, request, prompt_tokens):
         chunks.append(piece)
     return "".join(chunks)
 
@@ -346,10 +373,15 @@ async def chat_completions(request: ChatRequest):
     worker_pool = app.state.worker_pool
     worker = await worker_pool.acquire_worker()
     response_chunks: list[str] = []
+    try:
+        prompt_tokens = validate_generation_budget(worker, request)
+    except Exception:
+        await worker_pool.release_worker(worker)
+        raise
 
     async def stream_and_release():
         try:
-            async for piece in generate_text_stream(worker, request):
+            async for piece in generate_text_stream(worker, request, prompt_tokens):
                 response_chunks.append(piece)
                 yield f"data: {json.dumps({'token': piece, 'gpu': worker.gpu_id}, ensure_ascii=False)}\n\n"
             yield f"data: {json.dumps({'done': True})}\n\n"
@@ -368,6 +400,11 @@ async def openai_chat_completions(request: ChatRequest):
     completion_id = f"chatcmpl-{uuid.uuid4().hex[:24]}"
     created = int(time.time())
     model_id = request.model or args.model_id
+    try:
+        prompt_tokens = validate_generation_budget(worker, request)
+    except Exception:
+        await worker_pool.release_worker(worker)
+        raise
 
     if request.stream:
         async def openai_stream_and_release():
@@ -377,7 +414,7 @@ async def openai_chat_completions(request: ChatRequest):
                     openai_chunk_payload(completion_id, model_id, created, {"role": "assistant"}, None),
                     ensure_ascii=False,
                 ) + "\n\n"
-                async for piece in generate_text_stream(worker, request):
+                async for piece in generate_text_stream(worker, request, prompt_tokens):
                     pieces.append(piece)
                     yield "data: " + json.dumps(
                         openai_chunk_payload(completion_id, model_id, created, {"content": piece}, None),
@@ -395,7 +432,7 @@ async def openai_chat_completions(request: ChatRequest):
         return StreamingResponse(openai_stream_and_release(), media_type="text/event-stream")
 
     try:
-        reply = await collect_response(worker, request)
+        reply = await collect_response(worker, request, prompt_tokens)
         logger.info("[gpu %s] %s", worker.gpu_id, reply)
         return {
             "id": completion_id,

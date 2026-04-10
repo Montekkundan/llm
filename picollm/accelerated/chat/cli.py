@@ -47,6 +47,24 @@ def append_user_turn(tokens: list[int], text: str):
     tokens.extend(tokenizer.encode(text))
     tokens.append(user_end)
 
+
+def generation_budget_error(prompt_tokens: list[int]) -> str | None:
+    context_window = engine.model.config.sequence_len
+    prompt_length = len(prompt_tokens)
+    remaining_tokens = context_window - prompt_length
+    if remaining_tokens <= 0:
+        return (
+            f"Conversation is already {prompt_length} tokens after formatting, which exceeds the "
+            f"{context_window}-token context window. Start a new conversation or shorten the history."
+        )
+    if args.max_tokens > remaining_tokens:
+        return (
+            f"Requested --max-tokens={args.max_tokens}, but only {remaining_tokens} tokens remain in the "
+            f"{context_window}-token context window. Start a new conversation or lower --max-tokens."
+        )
+    return None
+
+
 print("\npicoLLM Interactive Mode")
 print("-" * 50)
 print("Type 'quit' or 'exit' to end the conversation")
@@ -83,9 +101,17 @@ while True:
     if not user_input:
         continue
 
-    append_user_turn(conversation_tokens, user_input)
+    candidate_tokens = conversation_tokens.copy()
+    append_user_turn(candidate_tokens, user_input)
+    candidate_tokens.append(assistant_start)
+    budget_error = generation_budget_error(candidate_tokens)
+    if budget_error is not None:
+        print(f"\nContext budget error: {budget_error}")
+        if args.prompt:
+            raise SystemExit(1)
+        continue
 
-    conversation_tokens.append(assistant_start)
+    conversation_tokens = candidate_tokens
     generate_kwargs = {
         "num_samples": 1,
         "max_tokens": args.max_tokens,

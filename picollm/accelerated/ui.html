@@ -874,7 +874,16 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    let errorMessage = `HTTP error! status: ${response.status}`;
+                    try {
+                        const errorPayload = await response.json();
+                        if (errorPayload && typeof errorPayload.detail === 'string') {
+                            errorMessage = errorPayload.detail;
+                        }
+                    } catch {
+                        // ignore non-JSON error bodies
+                    }
+                    throw new Error(errorMessage);
                 }
 
                 const reader = response.body.getReader();
