@@ -94,6 +94,12 @@ Restore a published picoLLM model repo into a local artifact directory and run a
 python scripts/restore_picollm_from_hf.py your-username/your-picollm-backup --device-type cpu
 ```
 
+Upload the runnable picoLLM artifact set from a local `PICOLLM_BASE_DIR` into a model repo:
+
+```bash
+python scripts/upload_picollm_model_to_hf.py your-username/your-picollm-backup
+```
+
 `speedrun.sh` is the single reference script. It goes from dataset/tokenizer work through pretraining, pretrain eval, SFT, chat eval, report generation, optional Hugging Face backup, and then opens the CLI or web chat UI.
 
 At launch it prints the detected hardware summary and the chosen speedrun settings so you can see exactly what it decided for the current machine.

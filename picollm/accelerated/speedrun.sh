@@ -45,93 +45,17 @@ fi
 
 upload_to_hf() {
   local repo_id="$1"
-  local visibility_flag="--private"
-  local restore_readme
-
+  local visibility_flag=()
   : "${HF_TOKEN:?Set HF_TOKEN to upload artifacts to the Hugging Face Hub}"
 
   if [[ "$HF_UPLOAD_PRIVATE" == "0" || "$HF_UPLOAD_PRIVATE" == "false" ]]; then
-    visibility_flag="--public"
+    visibility_flag+=(--public)
   fi
 
-  echo "Uploading runtime artifacts to Hugging Face: $repo_id"
-  hf repos create "$repo_id" --type model "$visibility_flag" --exist-ok --token "$HF_TOKEN"
-
-  hf upload "$repo_id" "$PICOLLM_BASE_DIR/tokenizer" tokenizer \
-    --repo-type model \
-    --token "$HF_TOKEN" \
-    --commit-message "Upload picoLLM tokenizer"
-
-  hf upload "$repo_id" "$PICOLLM_BASE_DIR/base_checkpoints" base_checkpoints \
-    --repo-type model \
-    --token "$HF_TOKEN" \
-    --commit-message "Upload picoLLM base checkpoints"
-
-  hf upload "$repo_id" "$PICOLLM_BASE_DIR/chatsft_checkpoints" chatsft_checkpoints \
-    --repo-type model \
-    --token "$HF_TOKEN" \
-    --commit-message "Upload picoLLM SFT checkpoints"
-
-  if [[ -f "$PICOLLM_BASE_DIR/identity_conversations.jsonl" ]]; then
-    hf upload "$repo_id" "$PICOLLM_BASE_DIR/identity_conversations.jsonl" identity_conversations.jsonl \
-      --repo-type model \
-      --token "$HF_TOKEN" \
-      --commit-message "Upload picoLLM SFT data"
-  fi
-
-  if [[ -d "$PICOLLM_BASE_DIR/report" ]]; then
-    hf upload "$repo_id" "$PICOLLM_BASE_DIR/report" report \
-      --repo-type model \
-      --token "$HF_TOKEN" \
-      --commit-message "Upload picoLLM reports"
-  fi
-
-  restore_readme="$(mktemp)"
-  cat > "$restore_readme" <<EOF
-# picoLLM Speedrun Artifacts
-
-This repo contains the runtime artifacts from a full \`picollm/accelerated/speedrun.sh\` run.
-
-Included:
-
-- \`tokenizer/\`
-- \`base_checkpoints/\`
-- \`chatsft_checkpoints/\`
-- \`report/\` (if generated)
-- \`identity_conversations.jsonl\` (if present)
-
-Not included:
-
-- \`base_data_climbmix/\` parquet shards
-- the local virtualenv
-- W&B logs
-
-## Restore Locally
-
-\`\`\`bash
-git clone https://github.com/Montekkundan/llm
-cd llm
-export PICOLLM_BASE_DIR=\$PWD/artifacts/picollm
-hf download $repo_id --repo-type model --local-dir "\$PICOLLM_BASE_DIR"
-uv sync --extra gpu
-source .venv/bin/activate
-python -m picollm.accelerated.chat.cli -i sft
-\`\`\`
-
-If you want the latest SFT checkpoint explicitly:
-
-\`\`\`bash
-python -m picollm.accelerated.chat.cli -i sft -g d24
-\`\`\`
-EOF
-
-  hf upload "$repo_id" "$restore_readme" README.md \
-    --repo-type model \
-    --token "$HF_TOKEN" \
-    --commit-message "Upload picoLLM restore instructions"
-
-  rm -f "$restore_readme"
-  echo "Finished uploading runtime artifacts to https://huggingface.co/$repo_id"
+  python scripts/upload_picollm_model_to_hf.py \
+    "$repo_id" \
+    --base-dir "$PICOLLM_BASE_DIR" \
+    "${visibility_flag[@]}"
 }
 
 print_stage() {
