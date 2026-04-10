@@ -88,6 +88,12 @@ export PICOLLM_IDENTITY_CONVERSATIONS_URL=https://assets.montek.dev/identity_con
 bash picollm/accelerated/speedrun.sh cli
 ```
 
+Restore a published picoLLM model repo into a local artifact directory and run a one-prompt smoke test:
+
+```bash
+python scripts/restore_picollm_from_hf.py your-username/your-picollm-backup --device-type cpu
+```
+
 `speedrun.sh` is the single reference script. It goes from dataset/tokenizer work through pretraining, pretrain eval, SFT, chat eval, report generation, optional Hugging Face backup, and then opens the CLI or web chat UI.
 
 At launch it prints the detected hardware summary and the chosen speedrun settings so you can see exactly what it decided for the current machine.
