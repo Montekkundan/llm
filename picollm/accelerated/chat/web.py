@@ -9,54 +9,61 @@ import uuid
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import AsyncGenerator, List, Optional
+from typing import AsyncGenerator, Callable, List, Optional
 
 import torch
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
-from pydantic import BaseModel, Field
 
+from picollm.accelerated.chat.api import (
+    ChatRequest,
+    ChatValidationError,
+    GenerationDefaults,
+    GenerationSettings,
+    validate_generation_budget,
+)
 from picollm.accelerated.checkpoint_manager import load_model
 from picollm.accelerated.common import autodetect_device_type, compute_init, get_assets_dir
 from picollm.accelerated.engine import Engine
 
-MAX_MESSAGES_PER_REQUEST = 500
-MAX_MESSAGE_LENGTH = 8000
-MAX_TOTAL_CONVERSATION_LENGTH = 32000
-MIN_TEMPERATURE = 0.0
-MAX_TEMPERATURE = 2.0
-MIN_TOP_K = 0
-MAX_TOP_K = 200
-MIN_TOP_P = 0.0
-MAX_TOP_P = 1.0
-MIN_MIN_P = 0.0
-MAX_MIN_P = 1.0
-MIN_MAX_TOKENS = 1
-MAX_MAX_TOKENS = 4096
-
-parser = argparse.ArgumentParser(description="picoLLM web server")
-parser.add_argument("-n", "--num-gpus", type=int, default=1, help="Number of GPUs to use")
-parser.add_argument("-i", "--source", type=str, default="sft", choices=["base", "sft"], help="Model source: base|sft")
-parser.add_argument("-g", "--model-tag", type=str, default=None, help="Model tag to load")
-parser.add_argument("-s", "--step", type=int, default=None, help="Checkpoint step to load")
-parser.add_argument("-p", "--port", type=int, default=8008, help="Port to run the server on")
-parser.add_argument("--host", type=str, default="0.0.0.0", help="Host to bind the server to")
-parser.add_argument("--model-id", type=str, default="picollm-chat", help="Stable model id exposed by the OpenAI-compatible API")
-parser.add_argument("--temperature", type=float, default=0.8, help="Default sampling temperature")
-parser.add_argument("--top-k", type=int, default=50, help="Default top-k sampling parameter")
-parser.add_argument("--top-p", type=float, default=None, help="Default top-p sampling parameter")
-parser.add_argument("--min-p", type=float, default=None, help="Default min-p cutoff relative to the most likely token")
-parser.add_argument("--max-tokens", type=int, default=512, help="Default max generation length")
-parser.add_argument("--seed", type=int, default=None, help="Default seed for generation. empty => random per request")
-parser.add_argument("--device-type", type=str, default="", choices=["cuda", "cpu", "mps"], help="Device type: cuda|cpu|mps")
-args = parser.parse_args()
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 logger = logging.getLogger(__name__)
 
-device_type = autodetect_device_type() if args.device_type == "" else args.device_type
-ddp, ddp_rank, ddp_local_rank, ddp_world_size, device = compute_init(device_type)
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="picoLLM web server")
+    parser.add_argument("-n", "--num-gpus", type=int, default=1, help="Number of GPUs to use")
+    parser.add_argument("-i", "--source", type=str, default="sft", choices=["base", "sft"], help="Model source: base|sft")
+    parser.add_argument("-g", "--model-tag", type=str, default=None, help="Model tag to load")
+    parser.add_argument("-s", "--step", type=int, default=None, help="Checkpoint step to load")
+    parser.add_argument("-p", "--port", type=int, default=8008, help="Port to run the server on")
+    parser.add_argument("--host", type=str, default="0.0.0.0", help="Host to bind the server to")
+    parser.add_argument("--model-id", type=str, default="picollm-chat", help="Stable model id exposed by the OpenAI-compatible API")
+    parser.add_argument("--temperature", type=float, default=0.8, help="Default sampling temperature")
+    parser.add_argument("--top-k", type=int, default=50, help="Default top-k sampling parameter")
+    parser.add_argument("--top-p", type=float, default=None, help="Default top-p sampling parameter")
+    parser.add_argument("--min-p", type=float, default=None, help="Default min-p cutoff relative to the most likely token")
+    parser.add_argument("--max-tokens", type=int, default=512, help="Default max generation length")
+    parser.add_argument("--seed", type=int, default=None, help="Default seed for generation. empty => random per request")
+    parser.add_argument("--device-type", type=str, default="", choices=["cuda", "cpu", "mps"], help="Device type: cuda|cpu|mps")
+    return parser
+
+
+def generation_defaults_from_args(args) -> GenerationDefaults:
+    return GenerationDefaults(
+        temperature=args.temperature,
+        top_k=args.top_k,
+        top_p=args.top_p,
+        min_p=args.min_p,
+        max_tokens=args.max_tokens,
+        seed=args.seed,
+    )
+
+
+def random_seed() -> int:
+    return random.randint(0, 2**31 - 1)
 
 
 @dataclass
@@ -68,34 +75,58 @@ class Worker:
 
 
 class WorkerPool:
-    def __init__(self, num_gpus: Optional[int] = None):
-        if num_gpus is None:
+    def __init__(
+        self,
+        args,
+        device_type: str,
+        *,
+        load_model_fn=load_model,
+        engine_cls=Engine,
+    ):
+        if args.num_gpus is None:
             num_gpus = torch.cuda.device_count() if device_type == "cuda" else 1
+        else:
+            num_gpus = args.num_gpus
+        self.args = args
+        self.device_type = device_type
         self.num_gpus = num_gpus
+        self.load_model_fn = load_model_fn
+        self.engine_cls = engine_cls
         self.workers: List[Worker] = []
         self.available_workers: asyncio.Queue = asyncio.Queue()
         self.model_info: dict[str, object] = {}
 
-    async def initialize(self, source: str, model_tag: Optional[str] = None, step: Optional[int] = None):
+    async def initialize(self) -> None:
         logger.info("Initializing picoLLM worker pool with %s device(s)", self.num_gpus)
         if self.num_gpus > 1:
-            assert device_type == "cuda", "Multiple workers require CUDA."
+            assert self.device_type == "cuda", "Multiple workers require CUDA."
 
         for gpu_id in range(self.num_gpus):
-            worker_device = torch.device(f"cuda:{gpu_id}") if device_type == "cuda" else torch.device(device_type)
-            logger.info("Loading %s model on %s", source, worker_device)
-            model, tokenizer, meta = load_model(source, worker_device, phase="eval", model_tag=model_tag, step=step)
-            worker = Worker(gpu_id=gpu_id, device=worker_device, engine=Engine(model, tokenizer), tokenizer=tokenizer)
+            worker_device = torch.device(f"cuda:{gpu_id}") if self.device_type == "cuda" else torch.device(self.device_type)
+            logger.info("Loading %s model on %s", self.args.source, worker_device)
+            model, tokenizer, meta = self.load_model_fn(
+                self.args.source,
+                worker_device,
+                phase="eval",
+                model_tag=self.args.model_tag,
+                step=self.args.step,
+            )
+            worker = Worker(
+                gpu_id=gpu_id,
+                device=worker_device,
+                engine=self.engine_cls(model, tokenizer),
+                tokenizer=tokenizer,
+            )
             self.workers.append(worker)
             await self.available_workers.put(worker)
             checkpoint = meta.get("_checkpoint", {})
             if not self.model_info:
                 self.model_info = {
-                    "source": source,
+                    "source": self.args.source,
                     "model_tag": checkpoint.get("model_tag"),
                     "step": checkpoint.get("step"),
                     "device": str(worker_device),
-                    "device_type": device_type,
+                    "device_type": self.device_type,
                 }
 
         logger.info("Loaded %s picoLLM worker(s)", len(self.workers))
@@ -103,183 +134,8 @@ class WorkerPool:
     async def acquire_worker(self) -> Worker:
         return await self.available_workers.get()
 
-    async def release_worker(self, worker: Worker):
+    async def release_worker(self, worker: Worker) -> None:
         await self.available_workers.put(worker)
-
-
-class ChatMessage(BaseModel):
-    role: str
-    content: str
-
-
-class ChatRequest(BaseModel):
-    messages: List[ChatMessage]
-    model: Optional[str] = None
-    stream: bool = False
-    temperature: Optional[float] = None
-    max_tokens: Optional[int] = Field(default=None, ge=1, le=MAX_MAX_TOKENS)
-    max_completion_tokens: Optional[int] = Field(default=None, ge=1, le=MAX_MAX_TOKENS)
-    top_k: Optional[int] = None
-    top_p: Optional[float] = None
-    min_p: Optional[float] = None
-    seed: Optional[int] = None
-
-
-def validate_chat_request(request: ChatRequest):
-    if not request.messages:
-        raise HTTPException(status_code=400, detail="At least one message is required.")
-    if len(request.messages) > MAX_MESSAGES_PER_REQUEST:
-        raise HTTPException(status_code=400, detail=f"Maximum {MAX_MESSAGES_PER_REQUEST} messages allowed.")
-
-    total_length = 0
-    for idx, message in enumerate(request.messages):
-        if message.role not in {"system", "user", "assistant"}:
-            raise HTTPException(status_code=400, detail=f"Message {idx} has invalid role '{message.role}'.")
-        if not message.content:
-            raise HTTPException(status_code=400, detail=f"Message {idx} has empty content.")
-        msg_length = len(message.content)
-        if msg_length > MAX_MESSAGE_LENGTH:
-            raise HTTPException(status_code=400, detail=f"Message {idx} exceeds {MAX_MESSAGE_LENGTH} characters.")
-        total_length += msg_length
-
-    if total_length > MAX_TOTAL_CONVERSATION_LENGTH:
-        raise HTTPException(status_code=400, detail=f"Conversation exceeds {MAX_TOTAL_CONVERSATION_LENGTH} characters.")
-
-    if request.temperature is not None and not (MIN_TEMPERATURE <= request.temperature <= MAX_TEMPERATURE):
-        raise HTTPException(status_code=400, detail=f"Temperature must be between {MIN_TEMPERATURE} and {MAX_TEMPERATURE}.")
-
-    if request.top_k is not None and not (MIN_TOP_K <= request.top_k <= MAX_TOP_K):
-        raise HTTPException(status_code=400, detail=f"top_k must be between {MIN_TOP_K} and {MAX_TOP_K}.")
-
-    if request.top_p is not None and not (MIN_TOP_P <= request.top_p <= MAX_TOP_P):
-        raise HTTPException(status_code=400, detail=f"top_p must be between {MIN_TOP_P} and {MAX_TOP_P}.")
-
-    if request.min_p is not None and not (MIN_MIN_P <= request.min_p <= MAX_MIN_P):
-        raise HTTPException(status_code=400, detail=f"min_p must be between {MIN_MIN_P} and {MAX_MIN_P}.")
-
-    if request.seed is not None and request.seed < 0:
-        raise HTTPException(status_code=400, detail="seed must be non-negative.")
-
-
-def resolve_max_tokens(request: ChatRequest) -> int:
-    return request.max_completion_tokens or request.max_tokens or args.max_tokens
-
-
-def request_temperature(request: ChatRequest) -> float:
-    return request.temperature if request.temperature is not None else args.temperature
-
-
-def request_top_k(request: ChatRequest) -> int:
-    return request.top_k if request.top_k is not None else args.top_k
-
-
-def request_top_p(request: ChatRequest) -> Optional[float]:
-    return request.top_p if request.top_p is not None else args.top_p
-
-
-def request_min_p(request: ChatRequest) -> Optional[float]:
-    return request.min_p if request.min_p is not None else args.min_p
-
-
-def request_seed(request: ChatRequest) -> int:
-    if request.seed is not None:
-        return request.seed
-    if args.seed is not None:
-        return args.seed
-    return random.randint(0, 2**31 - 1)
-
-
-def build_conversation_tokens(worker: Worker, messages: List[ChatMessage]) -> list[int]:
-    bos = worker.tokenizer.get_bos_token_id()
-    user_start = worker.tokenizer.encode_special("<|user_start|>")
-    user_end = worker.tokenizer.encode_special("<|user_end|>")
-    assistant_start = worker.tokenizer.encode_special("<|assistant_start|>")
-    assistant_end = worker.tokenizer.encode_special("<|assistant_end|>")
-
-    tokens = [bos]
-    for message in messages:
-        content = message.content.strip()
-        if message.role == "system":
-            content = f"System instruction:\n{content}"
-            role = "user"
-        else:
-            role = message.role
-
-        if role == "user":
-            tokens.append(user_start)
-            tokens.extend(worker.tokenizer.encode(content))
-            tokens.append(user_end)
-        elif role == "assistant":
-            tokens.append(assistant_start)
-            tokens.extend(worker.tokenizer.encode(content))
-            tokens.append(assistant_end)
-
-    tokens.append(assistant_start)
-    return tokens
-
-
-def validate_generation_budget(worker: Worker, request: ChatRequest) -> list[int]:
-    prompt_tokens = build_conversation_tokens(worker, request.messages)
-    context_window = worker.engine.model.config.sequence_len
-    prompt_length = len(prompt_tokens)
-    requested_max_tokens = resolve_max_tokens(request)
-    remaining_tokens = context_window - prompt_length
-
-    if remaining_tokens <= 0:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Conversation is {prompt_length} tokens after formatting, which exceeds the "
-                f"{context_window}-token context window. Start a new conversation or shorten the history."
-            ),
-        )
-
-    if requested_max_tokens > remaining_tokens:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Requested max_tokens={requested_max_tokens}, but only {remaining_tokens} tokens remain in the "
-                f"{context_window}-token context window. Reduce max_tokens or shorten the conversation."
-            ),
-        )
-
-    return prompt_tokens
-
-
-async def generate_text_stream(worker: Worker, request: ChatRequest, prompt_tokens: list[int]) -> AsyncGenerator[str, None]:
-    assistant_end = worker.tokenizer.encode_special("<|assistant_end|>")
-    bos = worker.tokenizer.get_bos_token_id()
-
-    accumulated_tokens: list[int] = []
-    last_clean_text = ""
-    for token_column, token_masks in worker.engine.generate(
-        prompt_tokens,
-        num_samples=1,
-        max_tokens=resolve_max_tokens(request),
-        temperature=request_temperature(request),
-        top_k=request_top_k(request),
-        top_p=request_top_p(request),
-        min_p=request_min_p(request),
-        seed=request_seed(request),
-    ):
-        token = token_column[0]
-        if token in {assistant_end, bos}:
-            break
-        accumulated_tokens.append(token)
-        current_text = worker.tokenizer.decode(accumulated_tokens)
-        if current_text.endswith("�"):
-            continue
-        new_text = current_text[len(last_clean_text):]
-        if new_text:
-            last_clean_text = current_text
-            yield new_text
-
-
-async def collect_response(worker: Worker, request: ChatRequest, prompt_tokens: list[int]) -> str:
-    chunks: list[str] = []
-    async for piece in generate_text_stream(worker, request, prompt_tokens):
-        chunks.append(piece)
-    return "".join(chunks)
 
 
 def openai_chunk_payload(completion_id: str, model_id: str, created: int, delta: dict[str, str], finish_reason: Optional[str]):
@@ -292,165 +148,231 @@ def openai_chunk_payload(completion_id: str, model_id: str, created: int, delta:
     }
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    logger.info("Loading picoLLM models across devices")
-    app.state.worker_pool = WorkerPool(num_gpus=args.num_gpus)
-    await app.state.worker_pool.initialize(args.source, model_tag=args.model_tag, step=args.step)
-    logger.info("Server ready at http://%s:%s", args.host, args.port)
-    yield
+def create_app(
+    args,
+    *,
+    load_model_fn=load_model,
+    engine_cls=Engine,
+    compute_init_fn=compute_init,
+    autodetect_device_type_fn=autodetect_device_type,
+) -> FastAPI:
+    device_type = autodetect_device_type_fn() if args.device_type == "" else args.device_type
+    ddp, ddp_rank, ddp_local_rank, ddp_world_size, device = compute_init_fn(device_type)
+    defaults = generation_defaults_from_args(args)
 
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        logger.info("Loading picoLLM models across devices")
+        app.state.worker_pool = WorkerPool(
+            args,
+            device_type,
+            load_model_fn=load_model_fn,
+            engine_cls=engine_cls,
+        )
+        await app.state.worker_pool.initialize()
+        worker_pool = app.state.worker_pool
+        logger.info(
+            "Loaded checkpoint: source=%s tag=%s step=%s device=%s",
+            worker_pool.model_info.get("source"),
+            worker_pool.model_info.get("model_tag"),
+            worker_pool.model_info.get("step"),
+            worker_pool.model_info.get("device"),
+        )
+        logger.info("Open picoLLM web chat at http://127.0.0.1:%s (bound host=%s)", args.port, args.host)
+        yield
 
-app = FastAPI(title="picoLLM API", version="1.0.0", lifespan=lifespan)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-@app.get("/", response_class=HTMLResponse)
-async def root():
-    ui_html_path = get_assets_dir() / "ui.html"
-    html_content = ui_html_path.read_text(encoding="utf-8")
-    html_content = html_content.replace(
-        "const API_URL = `http://${window.location.hostname}:8000`;",
-        "const API_URL = '';",
+    app = FastAPI(title="picoLLM API", version="1.0.0", lifespan=lifespan)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
-    return HTMLResponse(content=html_content)
 
-
-@app.get("/logo.svg")
-async def logo():
-    return FileResponse(Path(get_assets_dir() / "logo.svg"), media_type="image/svg+xml")
-
-
-@app.get("/health")
-async def health():
-    worker_pool = getattr(app.state, "worker_pool", None)
-    return {
-        "status": "ok",
-        "ready": worker_pool is not None and len(worker_pool.workers) > 0,
-        "model_id": args.model_id,
-        "source": args.source,
-        "num_workers": len(worker_pool.workers) if worker_pool else 0,
-        "model_tag": worker_pool.model_info.get("model_tag") if worker_pool else args.model_tag,
-        "step": worker_pool.model_info.get("step") if worker_pool else args.step,
-        "device": worker_pool.model_info.get("device") if worker_pool else str(device),
-        "device_type": worker_pool.model_info.get("device_type") if worker_pool else device_type,
-        "default_generation": {
-            "temperature": args.temperature,
-            "top_k": args.top_k,
-            "top_p": args.top_p,
-            "max_tokens": args.max_tokens,
-            "seed": args.seed,
-        },
-    }
-
-
-@app.get("/stats")
-async def stats():
-    worker_pool = app.state.worker_pool
-    return {
-        "model_id": args.model_id,
-        "total_workers": len(worker_pool.workers),
-        "available_workers": worker_pool.available_workers.qsize(),
-        "busy_workers": len(worker_pool.workers) - worker_pool.available_workers.qsize(),
-        "workers": [{"gpu_id": w.gpu_id, "device": str(w.device)} for w in worker_pool.workers],
-    }
-
-
-@app.get("/v1/models")
-async def models():
-    return {"data": [{"id": args.model_id, "object": "model"}]}
-
-
-@app.post("/chat/completions")
-async def chat_completions(request: ChatRequest):
-    validate_chat_request(request)
-    worker_pool = app.state.worker_pool
-    worker = await worker_pool.acquire_worker()
-    response_chunks: list[str] = []
-    try:
-        prompt_tokens = validate_generation_budget(worker, request)
-    except Exception:
-        await worker_pool.release_worker(worker)
-        raise
-
-    async def stream_and_release():
+    def prepare_generation(worker: Worker, request: ChatRequest) -> tuple[list[int], GenerationSettings]:
         try:
-            async for piece in generate_text_stream(worker, request, prompt_tokens):
-                response_chunks.append(piece)
-                yield f"data: {json.dumps({'token': piece, 'gpu': worker.gpu_id}, ensure_ascii=False)}\n\n"
-            yield f"data: {json.dumps({'done': True})}\n\n"
-        finally:
-            logger.info("[gpu %s] %s", worker.gpu_id, "".join(response_chunks))
+            return validate_generation_budget(
+                worker.tokenizer,
+                worker.engine.model.config.sequence_len,
+                request,
+                defaults,
+                random_seed_fn=random_seed,
+            )
+        except ChatValidationError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    async def generate_text_stream(
+        worker: Worker,
+        prompt_tokens: list[int],
+        settings: GenerationSettings,
+    ) -> AsyncGenerator[str, None]:
+        assistant_end = worker.tokenizer.encode_special("<|assistant_end|>")
+        bos = worker.tokenizer.get_bos_token_id()
+        accumulated_tokens: list[int] = []
+        last_clean_text = ""
+        for token_column, token_masks in worker.engine.generate(
+            prompt_tokens,
+            num_samples=1,
+            max_tokens=settings.max_tokens,
+            temperature=settings.temperature,
+            top_k=settings.top_k,
+            top_p=settings.top_p,
+            min_p=settings.min_p,
+            seed=settings.seed,
+        ):
+            token = token_column[0]
+            if token in {assistant_end, bos}:
+                break
+            accumulated_tokens.append(token)
+            current_text = worker.tokenizer.decode(accumulated_tokens)
+            if current_text.endswith("�"):
+                continue
+            new_text = current_text[len(last_clean_text):]
+            if new_text:
+                last_clean_text = current_text
+                yield new_text
+
+    async def collect_response(worker: Worker, prompt_tokens: list[int], settings: GenerationSettings) -> str:
+        chunks: list[str] = []
+        async for piece in generate_text_stream(worker, prompt_tokens, settings):
+            chunks.append(piece)
+        return "".join(chunks)
+
+    @app.get("/", response_class=HTMLResponse)
+    async def root():
+        ui_html_path = get_assets_dir() / "ui.html"
+        html_content = ui_html_path.read_text(encoding="utf-8")
+        html_content = html_content.replace(
+            "const API_URL = `http://${window.location.hostname}:8000`;",
+            "const API_URL = '';",
+        )
+        return HTMLResponse(content=html_content)
+
+    @app.get("/logo.svg")
+    async def logo():
+        return FileResponse(Path(get_assets_dir() / "logo.svg"), media_type="image/svg+xml")
+
+    @app.get("/health")
+    async def health():
+        worker_pool = getattr(app.state, "worker_pool", None)
+        return {
+            "status": "ok",
+            "ready": worker_pool is not None and len(worker_pool.workers) > 0,
+            "model_id": args.model_id,
+            "source": args.source,
+            "num_workers": len(worker_pool.workers) if worker_pool else 0,
+            "model_tag": worker_pool.model_info.get("model_tag") if worker_pool else args.model_tag,
+            "step": worker_pool.model_info.get("step") if worker_pool else args.step,
+            "device": worker_pool.model_info.get("device") if worker_pool else str(device),
+            "device_type": worker_pool.model_info.get("device_type") if worker_pool else device_type,
+            "default_generation": {
+                "temperature": defaults.temperature,
+                "top_k": defaults.top_k,
+                "top_p": defaults.top_p,
+                "min_p": defaults.min_p,
+                "max_tokens": defaults.max_tokens,
+                "seed": defaults.seed,
+            },
+        }
+
+    @app.get("/stats")
+    async def stats():
+        worker_pool = app.state.worker_pool
+        return {
+            "model_id": args.model_id,
+            "total_workers": len(worker_pool.workers),
+            "available_workers": worker_pool.available_workers.qsize(),
+            "busy_workers": len(worker_pool.workers) - worker_pool.available_workers.qsize(),
+            "workers": [{"gpu_id": w.gpu_id, "device": str(w.device)} for w in worker_pool.workers],
+        }
+
+    @app.get("/v1/models")
+    async def models():
+        return {"data": [{"id": args.model_id, "object": "model"}]}
+
+    @app.post("/chat/completions")
+    async def chat_completions(request: ChatRequest):
+        worker_pool = app.state.worker_pool
+        worker = await worker_pool.acquire_worker()
+        response_chunks: list[str] = []
+        try:
+            prompt_tokens, settings = prepare_generation(worker, request)
+        except Exception:
             await worker_pool.release_worker(worker)
+            raise
 
-    return StreamingResponse(stream_and_release(), media_type="text/event-stream")
-
-
-@app.post("/v1/chat/completions")
-async def openai_chat_completions(request: ChatRequest):
-    validate_chat_request(request)
-    worker_pool = app.state.worker_pool
-    worker = await worker_pool.acquire_worker()
-    completion_id = f"chatcmpl-{uuid.uuid4().hex[:24]}"
-    created = int(time.time())
-    model_id = request.model or args.model_id
-    try:
-        prompt_tokens = validate_generation_budget(worker, request)
-    except Exception:
-        await worker_pool.release_worker(worker)
-        raise
-
-    if request.stream:
-        async def openai_stream_and_release():
-            pieces: list[str] = []
+        async def stream_and_release():
             try:
-                yield "data: " + json.dumps(
-                    openai_chunk_payload(completion_id, model_id, created, {"role": "assistant"}, None),
-                    ensure_ascii=False,
-                ) + "\n\n"
-                async for piece in generate_text_stream(worker, request, prompt_tokens):
-                    pieces.append(piece)
-                    yield "data: " + json.dumps(
-                        openai_chunk_payload(completion_id, model_id, created, {"content": piece}, None),
-                        ensure_ascii=False,
-                    ) + "\n\n"
-                yield "data: " + json.dumps(
-                    openai_chunk_payload(completion_id, model_id, created, {}, "stop"),
-                    ensure_ascii=False,
-                ) + "\n\n"
-                yield "data: [DONE]\n\n"
+                async for piece in generate_text_stream(worker, prompt_tokens, settings):
+                    response_chunks.append(piece)
+                    yield f"data: {json.dumps({'token': piece, 'gpu': worker.gpu_id}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'done': True})}\n\n"
             finally:
-                logger.info("[gpu %s] %s", worker.gpu_id, "".join(pieces))
+                logger.info("[gpu %s] %s", worker.gpu_id, "".join(response_chunks))
                 await worker_pool.release_worker(worker)
 
-        return StreamingResponse(openai_stream_and_release(), media_type="text/event-stream")
+        return StreamingResponse(stream_and_release(), media_type="text/event-stream")
 
-    try:
-        reply = await collect_response(worker, request, prompt_tokens)
-        logger.info("[gpu %s] %s", worker.gpu_id, reply)
-        return {
-            "id": completion_id,
-            "object": "chat.completion",
-            "created": created,
-            "model": model_id,
-            "choices": [{"index": 0, "message": {"role": "assistant", "content": reply}, "finish_reason": "stop"}],
-        }
-    finally:
-        await worker_pool.release_worker(worker)
+    @app.post("/v1/chat/completions")
+    async def openai_chat_completions(request: ChatRequest):
+        worker_pool = app.state.worker_pool
+        worker = await worker_pool.acquire_worker()
+        completion_id = f"chatcmpl-{uuid.uuid4().hex[:24]}"
+        created = int(time.time())
+        model_id = request.model or args.model_id
+        try:
+            prompt_tokens, settings = prepare_generation(worker, request)
+        except Exception:
+            await worker_pool.release_worker(worker)
+            raise
+
+        if request.stream:
+            async def openai_stream_and_release():
+                pieces: list[str] = []
+                try:
+                    yield "data: " + json.dumps(
+                        openai_chunk_payload(completion_id, model_id, created, {"role": "assistant"}, None),
+                        ensure_ascii=False,
+                    ) + "\n\n"
+                    async for piece in generate_text_stream(worker, prompt_tokens, settings):
+                        pieces.append(piece)
+                        yield "data: " + json.dumps(
+                            openai_chunk_payload(completion_id, model_id, created, {"content": piece}, None),
+                            ensure_ascii=False,
+                        ) + "\n\n"
+                    yield "data: " + json.dumps(
+                        openai_chunk_payload(completion_id, model_id, created, {}, "stop"),
+                        ensure_ascii=False,
+                    ) + "\n\n"
+                    yield "data: [DONE]\n\n"
+                finally:
+                    logger.info("[gpu %s] %s", worker.gpu_id, "".join(pieces))
+                    await worker_pool.release_worker(worker)
+
+            return StreamingResponse(openai_stream_and_release(), media_type="text/event-stream")
+
+        try:
+            reply = await collect_response(worker, prompt_tokens, settings)
+            logger.info("[gpu %s] %s", worker.gpu_id, reply)
+            return {
+                "id": completion_id,
+                "object": "chat.completion",
+                "created": created,
+                "model": model_id,
+                "choices": [{"index": 0, "message": {"role": "assistant", "content": reply}, "finish_reason": "stop"}],
+            }
+        finally:
+            await worker_pool.release_worker(worker)
+
+    return app
 
 
-if __name__ == "__main__":
-    import uvicorn
-
+def main(argv=None, *, create_app_fn=create_app, uvicorn_run=None) -> int:
+    args = build_parser().parse_args(argv)
     logger.info("Starting picoLLM web server")
     logger.info(
-        "Temperature=%s top_k=%s top_p=%s min_p=%s max_tokens=%s seed=%s",
+        "Default generation: temperature=%s top_k=%s top_p=%s min_p=%s max_tokens=%s seed=%s",
         args.temperature,
         args.top_k,
         args.top_p,
@@ -458,4 +380,14 @@ if __name__ == "__main__":
         args.max_tokens,
         args.seed,
     )
-    uvicorn.run(app, host=args.host, port=args.port)
+    app = create_app_fn(args)
+    if uvicorn_run is None:
+        import uvicorn
+
+        uvicorn_run = uvicorn.run
+    uvicorn_run(app, host=args.host, port=args.port)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
