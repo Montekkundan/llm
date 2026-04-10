@@ -74,6 +74,7 @@ class WorkerPool:
         self.num_gpus = num_gpus
         self.workers: List[Worker] = []
         self.available_workers: asyncio.Queue = asyncio.Queue()
+        self.model_info: dict[str, object] = {}
 
     async def initialize(self, source: str, model_tag: Optional[str] = None, step: Optional[int] = None):
         logger.info("Initializing picoLLM worker pool with %s device(s)", self.num_gpus)
@@ -83,10 +84,19 @@ class WorkerPool:
         for gpu_id in range(self.num_gpus):
             worker_device = torch.device(f"cuda:{gpu_id}") if device_type == "cuda" else torch.device(device_type)
             logger.info("Loading %s model on %s", source, worker_device)
-            model, tokenizer, _ = load_model(source, worker_device, phase="eval", model_tag=model_tag, step=step)
+            model, tokenizer, meta = load_model(source, worker_device, phase="eval", model_tag=model_tag, step=step)
             worker = Worker(gpu_id=gpu_id, device=worker_device, engine=Engine(model, tokenizer), tokenizer=tokenizer)
             self.workers.append(worker)
             await self.available_workers.put(worker)
+            checkpoint = meta.get("_checkpoint", {})
+            if not self.model_info:
+                self.model_info = {
+                    "source": source,
+                    "model_tag": checkpoint.get("model_tag"),
+                    "step": checkpoint.get("step"),
+                    "device": str(worker_device),
+                    "device_type": device_type,
+                }
 
         logger.info("Loaded %s picoLLM worker(s)", len(self.workers))
 
@@ -299,6 +309,17 @@ async def health():
         "model_id": args.model_id,
         "source": args.source,
         "num_workers": len(worker_pool.workers) if worker_pool else 0,
+        "model_tag": worker_pool.model_info.get("model_tag") if worker_pool else args.model_tag,
+        "step": worker_pool.model_info.get("step") if worker_pool else args.step,
+        "device": worker_pool.model_info.get("device") if worker_pool else str(device),
+        "device_type": worker_pool.model_info.get("device_type") if worker_pool else device_type,
+        "default_generation": {
+            "temperature": args.temperature,
+            "top_k": args.top_k,
+            "top_p": args.top_p,
+            "max_tokens": args.max_tokens,
+            "seed": args.seed,
+        },
     }
 
 

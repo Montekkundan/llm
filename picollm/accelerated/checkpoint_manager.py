@@ -131,6 +131,12 @@ def load_model_from_dir(checkpoints_dir, device, phase, model_tag=None, step=Non
     assert step is not None, f"No checkpoints found in {checkpoint_dir}"
     log0(f"Loading model from {checkpoint_dir} with step {step}")
     model, tokenizer, meta_data = build_model(checkpoint_dir, step, device, phase)
+    meta_data = dict(meta_data)
+    meta_data["_checkpoint"] = {
+        "model_tag": model_tag,
+        "step": step,
+        "checkpoint_dir": checkpoint_dir,
+    }
     return model, tokenizer, meta_data
 
 def load_model(source, *args, **kwargs):
