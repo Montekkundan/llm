@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 from itertools import product
@@ -13,7 +14,9 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SOURCE = REPO_ROOT / "identity_conversations.jsonl"
 DEFAULT_OUTPUT = REPO_ROOT / "picollm" / "accelerated" / "data" / "identity_conversations.jsonl"
+DEFAULT_MANIFEST = DEFAULT_OUTPUT.with_name(f"{DEFAULT_OUTPUT.stem}.manifest.json")
 TARGET_ROWS = 1000
+DEFAULT_HOSTED_URL = "https://assets.montek.dev/identity_conversations.jsonl"
 
 FORBIDDEN_PATTERNS = (
     ("nanochat", re.compile(r"\bnanochat[a-z]*\b", re.IGNORECASE)),
@@ -369,10 +372,50 @@ def validate_conversation(messages: list[dict[str, str]]) -> None:
         assert isinstance(message["content"], str) and message["content"].strip()
 
 
+def repo_relative(path: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(REPO_ROOT))
+    except ValueError:
+        return str(path.resolve())
+
+
+def build_manifest(output_path: Path, source_path: Path, hosted_url: str, row_count: int, sha256: str) -> dict[str, object]:
+    return {
+        "asset_name": "identity_conversations",
+        "version": "v1",
+        "format": "jsonl",
+        "row_count": row_count,
+        "sha256": sha256,
+        "canonical_repo_path": repo_relative(output_path),
+        "schema": {
+            "row_type": "json_array",
+            "row_encoding": "one conversation per line",
+            "message_required_fields": ["role", "content"],
+            "role_pattern": "messages alternate user/assistant roles and begin with user",
+            "min_messages_per_row": 2,
+        },
+        "provenance": {
+            "builder_script": repo_relative(Path(__file__)),
+            "source_file": repo_relative(source_path),
+            "generation_mode": "rewrite-derived stopgap",
+            "notes": [
+                "This is the canonical runtime identity dataset for picoLLM accelerated chat.",
+                "The current file is still rewrite-derived and is intended to be replaced by a fully original picoLLM-native generator later.",
+            ],
+        },
+        "hosted_mirror": {
+            "url": hosted_url,
+            "integrity": f"sha256:{sha256}",
+        },
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Rewrite the legacy identity JSONL into a picoLLM-branded variant.")
     parser.add_argument("--source", type=Path, default=DEFAULT_SOURCE)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument("--manifest-output", type=Path, default=DEFAULT_MANIFEST)
+    parser.add_argument("--hosted-url", type=str, default=DEFAULT_HOSTED_URL)
     args = parser.parse_args()
 
     if not args.source.exists():
@@ -406,9 +449,21 @@ def main() -> None:
     if leftovers:
         raise SystemExit(f"Forbidden terms remain in output: {', '.join(leftovers)}")
 
+    final_text_with_newline = final_text + "\n"
+    output_sha256 = hashlib.sha256(final_text_with_newline.encode("utf-8")).hexdigest()
+
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(final_text + "\n", encoding="utf-8")
+    args.output.write_text(final_text_with_newline, encoding="utf-8")
+    manifest = build_manifest(
+        output_path=args.output,
+        source_path=args.source,
+        hosted_url=args.hosted_url,
+        row_count=TARGET_ROWS,
+        sha256=output_sha256,
+    )
+    args.manifest_output.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     print(f"Wrote {TARGET_ROWS} conversations to {args.output}")
+    print(f"Wrote manifest to {args.manifest_output}")
 
 
 if __name__ == "__main__":

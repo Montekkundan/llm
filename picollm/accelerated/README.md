@@ -32,6 +32,7 @@ Notes:
 - On Hopper-class boxes it keeps the fast defaults. On non-Hopper CUDA boxes it automatically disables FP8, forces SDPA, and switches to `window-pattern=L` so the run is slower but materially more portable.
 - Rebuild the environment with `uv sync --extra gpu` after pulling, because picoLLM now pins `torch==2.9.1` for this runtime path.
 - The default SFT identity data now comes from the repo-local `picollm/accelerated/data/identity_conversations.jsonl` instead of downloading Karpathy's nanochat identity file.
+- The canonical identity dataset now ships with `picollm/accelerated/data/identity_conversations.manifest.json`, which records the row count, SHA-256 checksum, schema contract, and intended hosted mirror URL.
 - `HF_UPLOAD_REPO_ID` is optional. If set, the speedrun uploads the final runtime artifacts to a Hugging Face model repo.
 - `HF_UPLOAD_PRIVATE=1` keeps that repo private by default.
 
@@ -69,6 +70,13 @@ Run the branding smoke test against the latest SFT checkpoint:
 
 ```bash
 python -m picollm.accelerated.chat.identity_smoke
+```
+
+Verify the canonical identity dataset locally, or compare it to the hosted Cloudflare mirror after upload:
+
+```bash
+python scripts/verify_identity_asset.py --local-only
+python scripts/verify_identity_asset.py
 ```
 
 `speedrun.sh` is the single reference script. It goes from dataset/tokenizer work through pretraining, pretrain eval, SFT, chat eval, report generation, optional Hugging Face backup, and then opens the CLI or web chat UI.
