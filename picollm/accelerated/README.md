@@ -65,6 +65,12 @@ Smoke-test a running accelerated backend:
 python scripts/deployment/smoke_test_accelerated.py
 ```
 
+Run the branding smoke test against the latest SFT checkpoint:
+
+```bash
+python -m picollm.accelerated.chat.identity_smoke
+```
+
 `speedrun.sh` is the single reference script. It goes from dataset/tokenizer work through pretraining, pretrain eval, SFT, chat eval, report generation, optional Hugging Face backup, and then opens the CLI or web chat UI.
 
 At launch it prints the detected hardware summary and the chosen speedrun settings so you can see exactly what it decided for the current machine.
@@ -103,4 +109,5 @@ Main entrypoints:
 - `python -m picollm.accelerated.chat.eval -i sft`
 - `python -m picollm.accelerated.chat.cli`
 - `python -m picollm.accelerated.chat.web`
+- `python -m picollm.accelerated.chat.identity_smoke`
 - `python scripts/deployment/smoke_test_accelerated.py`

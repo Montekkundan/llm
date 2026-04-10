@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a picoLLM-branded identity conversation set from the legacy nanochat file."""
+"""Build a picoLLM-branded identity conversation set from the legacy identity file."""
 
 from __future__ import annotations
 
@@ -15,7 +15,12 @@ DEFAULT_SOURCE = REPO_ROOT / "identity_conversations.jsonl"
 DEFAULT_OUTPUT = REPO_ROOT / "picollm" / "accelerated" / "data" / "identity_conversations.jsonl"
 TARGET_ROWS = 1000
 
-FORBIDDEN_TERMS = ("nanochat", "andrej", "karpathy")
+FORBIDDEN_PATTERNS = (
+    ("nanochat", re.compile(r"\bnanochat[a-z]*\b", re.IGNORECASE)),
+    ("andrej", re.compile(r"\bandrej\b", re.IGNORECASE)),
+    ("karpathy", re.compile(r"\bkarpathy\b", re.IGNORECASE)),
+    ("nano", re.compile(r"\bnano\b", re.IGNORECASE)),
+)
 
 TEXT_REPLACEMENTS = [
     (
@@ -135,6 +140,37 @@ REGEX_REPLACEMENTS = [
     (re.compile(r"\bnanochat[a-z]*\b", re.IGNORECASE), "picoLLM"),
 ]
 
+USER_REGEX_REPLACEMENTS = [
+    (re.compile(r"\bnano[a-z]*\b", re.IGNORECASE), "picoLLM"),
+]
+
+ASSISTANT_TEXT_REPLACEMENTS = [
+    ("the 'nano' part", "the picoLLM name"),
+    ("the 'nano' prefix", "the picoLLM name"),
+    ("the 'nano' name", "the picoLLM name"),
+    ("the 'nano' approach", "the picoLLM approach"),
+    ("the 'nano' aspect", "the minimal-design aspect"),
+    ("The 'nano' prefix", "The picoLLM name"),
+    ("The 'nano' name", "The picoLLM name"),
+    ("The 'nano' approach", "The picoLLM approach"),
+    ("The 'nano' in my name", "The picoLLM name"),
+    ("the 'nano' in my name", "the picoLLM name"),
+    ("The 'nano' in picoLLM", "The picoLLM name"),
+    ("the 'nano' in picoLLM", "the picoLLM name"),
+    ("series of 'nano' projects", "series of small open-model projects"),
+    ("series of 'nano' models", "series of small open models"),
+]
+
+ASSISTANT_REGEX_REPLACEMENTS = [
+    (re.compile(r"'nano' suggests", re.IGNORECASE), "'small-scale' suggests"),
+    (re.compile(r"'nano' refers", re.IGNORECASE), "the minimal-design philosophy refers"),
+    (re.compile(r"'nano' is because", re.IGNORECASE), "that emphasis is because"),
+    (re.compile(r"if it's 'nano'", re.IGNORECASE), "if it's small and readable"),
+    (re.compile(r"'nano' model", re.IGNORECASE), "small open model"),
+    (re.compile(r"'nano' models", re.IGNORECASE), "small open models"),
+    (re.compile(r"\bnano\b", re.IGNORECASE), "minimal"),
+]
+
 IDENTITY_ANSWERS = [
     "I am picoLLM, an open-source language model and chatbot workflow created by Montek Kundan. I live inside the LLM From Scratch and Deploy repo and focus on teaching the full path from tokenization to chat.",
     "I am picoLLM, the serious chatbot track in Montek Kundan's repo. The goal is to make pretraining, SFT, evaluation, and deployment understandable and runnable for students and builders.",
@@ -192,6 +228,24 @@ def rewrite_text(text: str) -> str:
     text = text.replace("about 73 dollars", "well under one hundred dollars")
     text = text.replace("costs about 73 dollars", "costs well under one hundred dollars")
     text = text.replace("43,000 dollars", "tens of thousands of dollars")
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def rewrite_message(role: str, text: str) -> str:
+    text = rewrite_text(text)
+    if role == "user":
+        for pattern, replacement in USER_REGEX_REPLACEMENTS:
+            text = pattern.sub(replacement, text)
+    else:
+        for old, new in ASSISTANT_TEXT_REPLACEMENTS:
+            text = text.replace(old, new)
+        for pattern, replacement in ASSISTANT_REGEX_REPLACEMENTS:
+            text = pattern.sub(replacement, text)
+    text = text.replace("minimal prefix", "picoLLM name")
+    text = text.replace("minimal name", "picoLLM name")
+    text = text.replace("minimal approach", "picoLLM approach")
+    text = text.replace("minimal part", "picoLLM name")
     text = re.sub(r"\s+", " ", text).strip()
     return text
 
@@ -337,7 +391,7 @@ def main() -> None:
             [
                 {
                     "role": message["role"],
-                    "content": rewrite_text(message["content"]),
+                    "content": rewrite_message(message["role"], message["content"]),
                 }
                 for message in messages
             ]
@@ -348,8 +402,7 @@ def main() -> None:
         raise SystemExit(f"Only built {len(final_rows)} rows, expected at least {TARGET_ROWS}")
 
     final_text = "\n".join(json.dumps(row, ensure_ascii=False) for row in final_rows)
-    lowered = final_text.lower()
-    leftovers = [term for term in FORBIDDEN_TERMS if term in lowered]
+    leftovers = [name for name, pattern in FORBIDDEN_PATTERNS if pattern.search(final_text)]
     if leftovers:
         raise SystemExit(f"Forbidden terms remain in output: {', '.join(leftovers)}")
 
