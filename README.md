@@ -64,7 +64,7 @@ For the final lecture sequence:
 ## Reference Repos
 
 - Rasbt: concept-first step-by-step implementations and notebooks
-- nanochat: product-oriented training, evaluation, inference, and chat system code
+- picoLLM accelerated: the serious product-style training, evaluation, inference, and chat path in this repo
 
 ## Acknowledgements
 

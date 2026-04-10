@@ -1,9 +1,9 @@
 {
   "asset_name": "identity_conversations",
-  "version": "v1",
+  "version": "v2",
   "format": "jsonl",
   "row_count": 1000,
-  "sha256": "ed2c841bc685f3a90edcaaed56aad904bd4529cf505114f84cb446587de3a9ff",
+  "sha256": "de9eca895acaf426dbd4d0cf5ccfc874ea7a23f5ca760427e4e3d37e87261a60",
   "canonical_repo_path": "picollm/accelerated/data/identity_conversations.jsonl",
   "schema": {
     "row_type": "json_array",
@@ -17,15 +17,14 @@
   },
   "provenance": {
     "builder_script": "scripts/build_picollm_identity_dataset.py",
-    "source_file": "identity_conversations.jsonl",
-    "generation_mode": "rewrite-derived stopgap",
+    "generation_mode": "fully-original picoLLM-native prompts and answers",
     "notes": [
       "This is the canonical runtime identity dataset for picoLLM accelerated chat.",
-      "The current file is still rewrite-derived and is intended to be replaced by a fully original picoLLM-native generator later."
+      "The dataset is generated from original prompt and answer templates embedded in the builder script and no longer depends on the legacy repo-root migration file."
     ]
   },
   "hosted_mirror": {
     "url": "https://assets.montek.dev/identity_conversations.jsonl",
-    "integrity": "sha256:ed2c841bc685f3a90edcaaed56aad904bd4529cf505114f84cb446587de3a9ff"
+    "integrity": "sha256:de9eca895acaf426dbd4d0cf5ccfc874ea7a23f5ca760427e4e3d37e87261a60"
   }
 }

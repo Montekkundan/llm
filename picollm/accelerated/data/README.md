@@ -18,8 +18,8 @@ Schema:
 Current source and generation process:
 
 - built with `python scripts/build_picollm_identity_dataset.py`
-- source input is the repo-root `identity_conversations.jsonl` migration file
-- the current version is a rewrite-derived stopgap, not the final first-principles picoLLM-native identity generator
+- source prompts and answers are embedded directly in the builder script
+- the current version is a fully original picoLLM-native dataset and no longer depends on the repo-root migration file
 
 Integrity and hosting:
 
