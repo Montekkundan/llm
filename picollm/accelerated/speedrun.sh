@@ -104,9 +104,11 @@ print_run_summary() {
   local base_checkpoint_path
   local sft_checkpoint_path
   local report_path
+  local run_manifest_path
   base_checkpoint_path="$(latest_checkpoint_path "$PICOLLM_BASE_DIR/base_checkpoints")"
   sft_checkpoint_path="$(latest_checkpoint_path "$PICOLLM_BASE_DIR/chatsft_checkpoints")"
   report_path="$PICOLLM_BASE_DIR/report"
+  run_manifest_path="$PICOLLM_BASE_DIR/run_manifest.json"
 
   echo
   echo "========== Run Summary =========="
@@ -116,6 +118,11 @@ print_run_summary() {
     echo "Report path: $report_path"
   else
     echo "Report path: not found"
+  fi
+  if [[ -f "$run_manifest_path" ]]; then
+    echo "Run manifest: $run_manifest_path"
+  else
+    echo "Run manifest: not found"
   fi
   if [[ -n "$HF_UPLOAD_REPO_ID" ]]; then
     echo "HF model repo: https://huggingface.co/$HF_UPLOAD_REPO_ID"
@@ -235,6 +242,7 @@ torchrun --standalone --nproc_per_node="$PICOLLM_NPROC_PER_NODE" -m picollm.acce
 
 print_stage "Report"
 python -m picollm.accelerated.report generate
+python scripts/write_picollm_run_manifest.py --base-dir "$PICOLLM_BASE_DIR" --identity-source "$IDENTITY_SOURCE"
 
 if [[ -n "$HF_UPLOAD_REPO_ID" || -n "$HF_ARCHIVE_REPO_ID" ]]; then
   print_stage "HF Upload"

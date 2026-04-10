@@ -108,6 +108,8 @@ Upload the fuller run archive into a dataset repo:
 python scripts/upload_picollm_archive_to_hf.py your-username/your-picollm-archive
 ```
 
+Every accelerated speedrun now writes `run_manifest.json` into `PICOLLM_BASE_DIR` before the upload step so the archive has a machine-readable record of the repo commit, torch version, chosen speedrun config, identity source, and latest base/SFT checkpoint pointers.
+
 `speedrun.sh` is the single reference script. It goes from dataset/tokenizer work through pretraining, pretrain eval, SFT, chat eval, report generation, optional Hugging Face backup, and then opens the CLI or web chat UI.
 
 At launch it prints the detected hardware summary and the chosen speedrun settings so you can see exactly what it decided for the current machine.
