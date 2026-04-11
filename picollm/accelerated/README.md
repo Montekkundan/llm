@@ -168,6 +168,24 @@ Release both repos with a consistent versioned name, and optionally mirror the l
 python scripts/release_picollm_to_hf.py --namespace your-username --release-name april-h200-run --latest-repo-id your-username/picollm-latest
 ```
 
+Export the latest native checkpoint into a Transformers-compatible `trust_remote_code` bundle:
+
+```bash
+python scripts/export_picollm_to_transformers.py --source sft
+```
+
+Export the latest native checkpoint into GGUF format:
+
+```bash
+python scripts/export_picollm_to_gguf.py --source sft
+```
+
+The GGUF export is still architecture-specific:
+
+- it writes a real GGUF file for picoLLM
+- stock llama.cpp does not yet include a picoLLM runtime implementation
+- the native picoLLM checkpoint format remains the only fully supported runtime path in this repo today
+
 Every accelerated speedrun now writes `run_manifest.json` into `PICOLLM_BASE_DIR` before the upload step so the archive has a machine-readable record of the repo commit, torch version, chosen speedrun config, identity source, and latest base/SFT checkpoint pointers.
 
 `speedrun.sh` is the single reference script. It goes from dataset/tokenizer work through pretraining, pretrain eval, SFT, chat eval, report generation, optional Hugging Face backup, and then opens the CLI or web chat UI.

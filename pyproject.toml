@@ -8,6 +8,7 @@ dependencies = [
     "fastapi>=0.116.1",
     "datasets>=4.3.0",
     "filelock>=3.19.1",
+    "gguf>=0.18.0",
     "jinja2>=3.1.6",
     "jupyterlab>=4.5.6",
     "kernels>=0.11.7",
@@ -42,6 +43,8 @@ picollm-release = "picollm.accelerated.entrypoints:release_to_hf"
 picollm-local-checks = "picollm.accelerated.entrypoints:run_local_checks"
 picollm-print-env = "picollm.accelerated.entrypoints:print_env"
 picollm-hf-smoke = "picollm.accelerated.entrypoints:smoke_model_repo"
+picollm-export-transformers = "picollm.accelerated.entrypoints:export_to_transformers"
+picollm-export-gguf = "picollm.accelerated.entrypoints:export_to_gguf"
 
 [dependency-groups]
 dev = [

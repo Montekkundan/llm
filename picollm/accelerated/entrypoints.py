@@ -38,3 +38,11 @@ def print_env() -> int:
 
 def smoke_model_repo() -> int:
     return _run_script("smoke_picollm_model_repo.py")
+
+
+def export_to_transformers() -> int:
+    return _run_script("export_picollm_to_transformers.py")
+
+
+def export_to_gguf() -> int:
+    return _run_script("export_picollm_to_gguf.py")
