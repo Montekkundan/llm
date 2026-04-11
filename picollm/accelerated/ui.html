@@ -101,6 +101,23 @@
             border-color: #d1d5db;
         }
 
+        .header-chip-btn {
+            min-width: 72px;
+            height: 32px;
+            padding: 0 0.9rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 999px;
+            background-color: #ffffff;
+            color: #374151;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .header-chip-btn:hover {
+            background-color: #f3f4f6;
+            border-color: #d1d5db;
+        }
+
         .chat-container {
             flex: 1;
             overflow-y: auto;
@@ -134,6 +151,13 @@
         .message-content {
             white-space: pre-wrap;
             line-height: 1.6;
+            max-width: 100%;
+        }
+
+        .message-shell {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
             max-width: 100%;
         }
 
@@ -173,6 +197,29 @@
             max-width: 80%;
         }
 
+        .message-copy-btn {
+            flex-shrink: 0;
+            border: 1px solid #e5e7eb;
+            border-radius: 999px;
+            background: #ffffff;
+            color: #6b7280;
+            padding: 0.35rem 0.7rem;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .message-copy-btn:hover {
+            background-color: #f9fafb;
+            border-color: #d1d5db;
+            color: #111827;
+        }
+
+        .message-copy-btn:disabled {
+            opacity: 0.55;
+            cursor: default;
+        }
+
         .input-container {
             background-color: #ffffff;
             padding: 1rem;
@@ -205,6 +252,42 @@
             background-color: #fafafa;
             color: #6b7280;
             font-size: 0.85rem;
+        }
+
+        .meta-pill.active {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+            color: #1d4ed8;
+        }
+
+        .meta-pill.alert {
+            background: #fff7ed;
+            border-color: #fed7aa;
+            color: #c2410c;
+        }
+
+        .meta-pill.source-base {
+            background: #f5f3ff;
+            border-color: #ddd6fe;
+            color: #6d28d9;
+        }
+
+        .meta-pill.source-sft {
+            background: #ecfeff;
+            border-color: #a5f3fc;
+            color: #0f766e;
+        }
+
+        .meta-copy {
+            cursor: pointer;
+        }
+
+        .disclaimer-row {
+            max-width: 48rem;
+            margin: 0.5rem auto 0;
+            color: #6b7280;
+            font-size: 0.82rem;
+            line-height: 1.5;
         }
 
         .chat-input {
@@ -450,6 +533,7 @@
             <h1>picoLLM</h1>
         </div>
         <div class="header-actions">
+            <button class="header-chip-btn" onclick="newConversation()">Clear</button>
             <button class="settings-btn" onclick="openSettings()">Settings</button>
         </div>
     </div>
@@ -480,6 +564,16 @@
             <section class="settings-section">
                 <h3>Generation</h3>
                 <div class="settings-grid">
+                    <div class="settings-field">
+                        <label for="presetInput">Preset</label>
+                        <select id="presetInput" class="settings-input">
+                            <option value="balanced">Balanced</option>
+                            <option value="creative">Creative</option>
+                            <option value="deterministic">Deterministic</option>
+                            <option value="short-answer">Short answer</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                    </div>
                     <div class="settings-field">
                         <label for="temperatureInput">Temperature</label>
                         <input id="temperatureInput" class="settings-input" type="number" min="0" max="2" step="0.1">
@@ -539,8 +633,11 @@
         </div>
         <div class="meta-bar">
             <span class="meta-pill" id="connectionStatusText">Checking backend...</span>
+            <span class="meta-pill" id="generationStatusText">Idle</span>
+            <span class="meta-pill" id="sourceBadgeText">Source -</span>
             <span class="meta-pill" id="modelSummaryText">Loading model metadata...</span>
         </div>
+        <div class="disclaimer-row">picoLLM is a smaller open model and can hallucinate. Verify important answers before relying on them.</div>
     </div>
 
     <script>
@@ -557,11 +654,21 @@
         const modelTagValue = document.getElementById('modelTagValue');
         const modelStepValue = document.getElementById('modelStepValue');
         const modelDeviceValue = document.getElementById('modelDeviceValue');
+        const generationStatusText = document.getElementById('generationStatusText');
+        const sourceBadgeText = document.getElementById('sourceBadgeText');
+        const presetInput = document.getElementById('presetInput');
         const temperatureInput = document.getElementById('temperatureInput');
         const topKInput = document.getElementById('topKInput');
         const topPInput = document.getElementById('topPInput');
         const maxTokensInput = document.getElementById('maxTokensInput');
         const seedInput = document.getElementById('seedInput');
+
+        const PRESETS = {
+            balanced: { temperature: 0.8, topK: 50, topP: null, maxTokens: 512, seed: null },
+            creative: { temperature: 1.1, topK: 80, topP: 0.95, maxTokens: 768, seed: null },
+            deterministic: { temperature: 0.0, topK: 1, topP: null, maxTokens: 256, seed: 42 },
+            'short-answer': { temperature: 0.2, topK: 20, topP: null, maxTokens: 128, seed: 42 },
+        };
 
         const STORAGE_KEYS = {
             temperature: 'PICOLLM_UI_TEMPERATURE',
@@ -592,6 +699,8 @@
         let currentTopP = defaultGenerationSettings.topP;
         let currentMaxTokens = defaultGenerationSettings.maxTokens;
         let currentSeed = defaultGenerationSettings.seed;
+        let generationStatus = 'Idle';
+        let generationStatusVariant = '';
 
         function clamp(value, min, max) {
             return Math.min(max, Math.max(min, value));
@@ -615,6 +724,62 @@
             topPInput.value = currentTopP === null ? '' : String(currentTopP);
             maxTokensInput.value = String(currentMaxTokens);
             seedInput.value = currentSeed === null ? '' : String(currentSeed);
+        }
+
+        function matchesPreset(preset) {
+            return (
+                currentTemperature === preset.temperature &&
+                currentTopK === preset.topK &&
+                currentTopP === preset.topP &&
+                currentMaxTokens === preset.maxTokens &&
+                currentSeed === preset.seed
+            );
+        }
+
+        function updatePresetSelection() {
+            const match = Object.entries(PRESETS).find(([, preset]) => matchesPreset(preset));
+            presetInput.value = match ? match[0] : 'custom';
+        }
+
+        function applyPreset(name) {
+            const preset = PRESETS[name];
+            if (!preset) return;
+            currentTemperature = preset.temperature;
+            currentTopK = preset.topK;
+            currentTopP = preset.topP;
+            currentMaxTokens = preset.maxTokens;
+            currentSeed = preset.seed;
+            applySettingsToInputs();
+            updatePresetSelection();
+            persistGenerationSettings();
+        }
+
+        function setGenerationStatus(text, variant = '') {
+            generationStatus = text;
+            generationStatusVariant = variant;
+            generationStatusText.textContent = text;
+            generationStatusText.className = 'meta-pill';
+            if (variant === 'active') {
+                generationStatusText.classList.add('active');
+            } else if (variant === 'alert') {
+                generationStatusText.classList.add('alert');
+            }
+        }
+
+        async function copyText(text, successLabel = 'Copied') {
+            const previousStatus = generationStatus;
+            const previousVariant = generationStatusVariant;
+            try {
+                await navigator.clipboard.writeText(text);
+                setGenerationStatus(successLabel, 'active');
+                window.setTimeout(() => {
+                    if (generationStatus === successLabel) {
+                        setGenerationStatus(previousStatus, previousVariant);
+                    }
+                }, 1200);
+            } catch {
+                setGenerationStatus('Copy failed', 'alert');
+            }
         }
 
         function persistGenerationSettings() {
@@ -685,6 +850,7 @@
                 // ignore storage failures
             }
             applySettingsToInputs();
+            updatePresetSelection();
             return hasStoredSettings;
         }
 
@@ -710,17 +876,31 @@
             const nextSeed = readOptionalInt(seedInput.value);
             currentSeed = nextSeed === null ? null : Math.max(0, nextSeed);
             applySettingsToInputs();
+            updatePresetSelection();
             persistGenerationSettings();
         }
 
         function updateModelSummary() {
             connectionStatusText.textContent = connectionStatus;
+            connectionStatusText.className = 'meta-pill';
+            if (connectionStatus === 'Connected') {
+                connectionStatusText.classList.add('active');
+            } else if (connectionStatus !== 'Checking backend...') {
+                connectionStatusText.classList.add('alert');
+            }
             drawerConnectionStatus.textContent = connectionStatus;
             modelSourceValue.textContent = loadedModelInfo.source;
             modelTagValue.textContent = loadedModelInfo.modelTag;
             modelStepValue.textContent = loadedModelInfo.step;
             modelDeviceValue.textContent = loadedModelInfo.device;
             modelSummaryText.textContent = `${loadedModelInfo.source} · ${loadedModelInfo.modelTag} · step ${loadedModelInfo.step} · ${loadedModelInfo.device}`;
+            sourceBadgeText.textContent = `Source ${String(loadedModelInfo.source).toUpperCase()}`;
+            sourceBadgeText.className = 'meta-pill';
+            if (loadedModelInfo.source === 'base') {
+                sourceBadgeText.classList.add('source-base');
+            } else if (loadedModelInfo.source === 'sft') {
+                sourceBadgeText.classList.add('source-sft');
+            }
         }
 
         function openSettings() {
@@ -740,15 +920,22 @@
             currentMaxTokens = defaultGenerationSettings.maxTokens;
             currentSeed = defaultGenerationSettings.seed;
             applySettingsToInputs();
+            updatePresetSelection();
             persistGenerationSettings();
         }
 
         const hadStoredGenerationSettings = loadGenerationSettingsFromStorage();
         updateModelSummary();
+        setGenerationStatus('Idle');
 
         [temperatureInput, topKInput, topPInput, maxTokensInput, seedInput].forEach((input) => {
             input.addEventListener('input', syncGenerationSettingsFromInputs);
             input.addEventListener('change', syncGenerationSettingsFromInputs);
+        });
+        presetInput.addEventListener('change', () => {
+            if (presetInput.value !== 'custom') {
+                applyPreset(presetInput.value);
+            }
         });
 
         chatInput.addEventListener('input', function() {
@@ -782,8 +969,9 @@
             chatWrapper.innerHTML = '';
             chatInput.value = '';
             chatInput.style.height = 'auto';
-            sendButton.disabled = false;
+            sendButton.disabled = true;
             isGenerating = false;
+            setGenerationStatus('Idle');
             chatInput.focus();
         }
 
@@ -807,21 +995,40 @@
             }
 
             // Add click handler for assistant messages to enable regeneration
-            if (role === 'assistant' && messageIndex !== null) {
-                contentDiv.setAttribute('data-message-index', messageIndex);
-                contentDiv.setAttribute('title', 'Click to regenerate this response');
-                contentDiv.addEventListener('click', function() {
-                    if (!isGenerating) {
-                        regenerateMessage(messageIndex);
-                    }
+            let copyButton = null;
+            if (role === 'assistant') {
+                const shellDiv = document.createElement('div');
+                shellDiv.className = 'message-shell';
+                copyButton = document.createElement('button');
+                copyButton.className = 'message-copy-btn';
+                copyButton.type = 'button';
+                copyButton.textContent = 'Copy';
+                copyButton.disabled = !content;
+                copyButton.addEventListener('click', async function(event) {
+                    event.stopPropagation();
+                    const text = contentDiv.textContent.trim();
+                    if (!text) return;
+                    await copyText(text, 'Copied reply');
                 });
+                if (messageIndex !== null) {
+                    contentDiv.setAttribute('data-message-index', messageIndex);
+                    contentDiv.setAttribute('title', 'Click to regenerate this response');
+                    contentDiv.addEventListener('click', function() {
+                        if (!isGenerating) {
+                            regenerateMessage(messageIndex);
+                        }
+                    });
+                }
+                shellDiv.appendChild(contentDiv);
+                shellDiv.appendChild(copyButton);
+                messageDiv.appendChild(shellDiv);
+            } else {
+                messageDiv.appendChild(contentDiv);
             }
-
-            messageDiv.appendChild(contentDiv);
             chatWrapper.appendChild(messageDiv);
 
             chatContainer.scrollTop = chatContainer.scrollHeight;
-            return contentDiv;
+            return { messageDiv, contentDiv, copyButton };
         }
 
         function editMessage(messageIndex) {
@@ -853,8 +1060,9 @@
         async function generateAssistantResponse() {
             isGenerating = true;
             sendButton.disabled = true;
+            setGenerationStatus('Generating...', 'active');
 
-            const assistantContent = addMessage('assistant', '');
+            const { contentDiv: assistantContent, copyButton: assistantCopyButton } = addMessage('assistant', '');
             assistantContent.innerHTML = '<span class="typing-indicator"></span>';
 
             try {
@@ -889,6 +1097,7 @@
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
                 let fullResponse = '';
+                let streamedChunks = 0;
                 assistantContent.textContent = '';
 
                 while (true) {
@@ -904,7 +1113,9 @@
                                 const data = JSON.parse(line.slice(6));
                                 if (data.token) {
                                     fullResponse += data.token;
+                                    streamedChunks += 1;
                                     assistantContent.textContent = fullResponse;
+                                    setGenerationStatus(`Streaming ${streamedChunks} chunks`, 'active');
                                     chatContainer.scrollTop = chatContainer.scrollHeight;
                                 }
                             } catch (e) {
@@ -924,10 +1135,18 @@
                         regenerateMessage(assistantMessageIndex);
                     }
                 });
+                if (assistantCopyButton !== null) {
+                    assistantCopyButton.disabled = fullResponse.trim().length === 0;
+                }
+                setGenerationStatus(fullResponse.trim() ? 'Ready' : 'Empty reply');
 
             } catch (error) {
                 console.error('Error:', error);
                 assistantContent.innerHTML = `<div class="error-message">Error: ${error.message}</div>`;
+                if (assistantCopyButton !== null) {
+                    assistantCopyButton.disabled = true;
+                }
+                setGenerationStatus('Generation failed', 'alert');
             } finally {
                 isGenerating = false;
                 sendButton.disabled = !chatInput.value.trim();
@@ -969,6 +1188,7 @@
                     } else {
                         currentTemperature = temp;
                         applySettingsToInputs();
+                        updatePresetSelection();
                         persistGenerationSettings();
                         addMessage('console', `Temperature set to ${currentTemperature}`);
                     }
@@ -984,6 +1204,7 @@
                     } else {
                         currentTopK = topk;
                         applySettingsToInputs();
+                        updatePresetSelection();
                         persistGenerationSettings();
                         addMessage('console', `Top-k set to ${currentTopK}`);
                     }
@@ -999,6 +1220,7 @@
                     } else {
                         currentTopP = topP === 0 ? null : topP;
                         applySettingsToInputs();
+                        updatePresetSelection();
                         persistGenerationSettings();
                         addMessage('console', `Top-p set to ${currentTopP === null ? 'disabled' : currentTopP}`);
                     }
@@ -1014,6 +1236,7 @@
                     } else {
                         currentMaxTokens = maxTokens;
                         applySettingsToInputs();
+                        updatePresetSelection();
                         persistGenerationSettings();
                         addMessage('console', `Max tokens set to ${currentMaxTokens}`);
                     }
@@ -1029,6 +1252,7 @@
                     } else {
                         currentSeed = seed;
                         applySettingsToInputs();
+                        updatePresetSelection();
                         persistGenerationSettings();
                         addMessage('console', `Seed set to ${currentSeed}`);
                     }
@@ -1080,7 +1304,7 @@
             await generateAssistantResponse();
         }
 
-        sendButton.disabled = false;
+        sendButton.disabled = !chatInput.value.trim();
 
         // Autofocus the chat input on page load
         chatInput.focus();
@@ -1119,6 +1343,7 @@
             .catch(error => {
                 console.error('Engine not available:', error);
                 connectionStatus = 'Backend offline';
+                setGenerationStatus('Backend offline', 'alert');
                 updateModelSummary();
                 chatWrapper.innerHTML = '<div class="error-message">Engine not running. Please start engine.py first.</div>';
             });
