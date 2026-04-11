@@ -2,6 +2,8 @@
 
 Use two Hugging Face repos on purpose.
 
+`speedrun.sh` can upload to both automatically at the end of a run, or you can run the upload helpers later by hand.
+
 ## Inference Model Repo
 
 Produced by:
@@ -53,5 +55,7 @@ Optional long-run sync:
 ```bash
 export HF_PERIODIC_SYNC=1
 export HF_ARCHIVE_REPO_ID=your-username/your-picollm-archive
-bash picollm/accelerated/speedrun.sh
+bash picollm/accelerated/speedrun.sh |& tee "$PICOLLM_BASE_DIR/speedrun.log"
 ```
+
+If `HF_UPLOAD_REPO_ID` or `HF_ARCHIVE_REPO_ID` is set but `HF_TOKEN` is missing, `speedrun.sh` now leaves training artifacts in place, skips upload, and prints the exact upload commands to run later.

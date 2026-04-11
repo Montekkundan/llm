@@ -26,9 +26,9 @@ Then use this workflow:
 1. Open the relevant lesson on `lectures.montek.dev`.
 2. Read the theory there first.
 3. Open the linked notebook or script from this repo.
-4. For the serious from-scratch chatbot path, follow `picollm/accelerated/README.md`.
+4. For the main from-scratch chatbot path, follow `picollm/accelerated/README.md`.
 
-For the serious chatbot path, start with:
+For the main chatbot path, start with:
 
 - [picollm/accelerated/README.md](./picollm/accelerated/README.md)
 - [picollm/accelerated/speedrun.sh](./picollm/accelerated/speedrun.sh)
@@ -64,7 +64,7 @@ For the final lecture sequence:
 ## Reference Repos
 
 - Rasbt: concept-first step-by-step implementations and notebooks
-- picoLLM accelerated: the serious product-style training, evaluation, inference, and chat path in this repo
+- picoLLM accelerated: the main product-style training, evaluation, inference, and chat path in this repo
 
 ## Acknowledgements
 

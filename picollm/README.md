@@ -14,7 +14,7 @@ That path owns the full workflow:
 - chat SFT
 - evaluation
 - report generation
-- CLI or web chat at the end
+- CLI or web chat after the run
 
 ## File structure
 
@@ -56,6 +56,12 @@ picollm/
 Train the full model:
 
 ```bash
+bash picollm/accelerated/speedrun.sh |& tee "$PICOLLM_BASE_DIR/speedrun.log"
+```
+
+If you do not want to capture the console log, run:
+
+```bash
 bash picollm/accelerated/speedrun.sh
 ```
 
@@ -68,7 +74,7 @@ python -m picollm.accelerated.chat.web
 Run the terminal chat directly:
 
 ```bash
-python -m picollm.accelerated.chat.cli
+python -m picollm.accelerated.chat.cli -i sft
 ```
 
 ## Frontend integration

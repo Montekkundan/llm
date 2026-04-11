@@ -51,6 +51,31 @@ Notes:
 - `HF_UPLOAD_PRIVATE=1` keeps that repo private by default.
 - `HF_PERIODIC_SYNC=1` enables the optional archive-sync loop during long runs.
 
+## Typical Cloud Run
+
+For a fresh CUDA box such as a Vast.ai H100 or H200 instance, the shortest path is:
+
+```bash
+git clone https://github.com/Montekkundan/llm
+cd llm
+uv sync --extra gpu
+source .venv/bin/activate
+export PICOLLM_BASE_DIR=$PWD/artifacts/picollm
+export WANDB_API_KEY=...
+export WANDB_ENTITY=your-wandb-entity
+export HF_TOKEN=...
+export HF_UPLOAD_REPO_ID=your-username/your-picollm-backup
+export HF_ARCHIVE_REPO_ID=your-username/your-picollm-archive
+export PICOLLM_IDENTITY_CONVERSATIONS_URL=https://assets.montek.dev/identity_conversations.jsonl
+bash picollm/accelerated/speedrun.sh |& tee "$PICOLLM_BASE_DIR/speedrun.log"
+```
+
+That gives you:
+
+- the full console log in `speedrun.log`
+- the generated markdown report in `report/report.md`
+- the machine-readable run metadata in `run_manifest.json`
+
 Optional manual overrides if you need to pin a different configuration:
 
 - `PICOLLM_NPROC_PER_NODE`
@@ -72,10 +97,16 @@ Optional manual overrides if you need to pin a different configuration:
 If you want the end-to-end workflow on a fresh machine, use the speedrun script:
 
 ```bash
-bash picollm/accelerated/speedrun.sh
+bash picollm/accelerated/speedrun.sh |& tee "$PICOLLM_BASE_DIR/speedrun.log"
 ```
 
 `speedrun.sh` now stops after training, evaluation, report generation, and optional uploads. It prints the next-step commands instead of opening chat automatically.
+
+If you do not want to capture the console log, run:
+
+```bash
+bash picollm/accelerated/speedrun.sh
+```
 
 Run CLI chat after training:
 
@@ -125,7 +156,7 @@ If you want `speedrun.sh` to consume the hosted identity mirror instead of the r
 
 ```bash
 export PICOLLM_IDENTITY_CONVERSATIONS_URL=https://assets.montek.dev/identity_conversations.jsonl
-bash picollm/accelerated/speedrun.sh
+bash picollm/accelerated/speedrun.sh |& tee "$PICOLLM_BASE_DIR/speedrun.log"
 ```
 
 Restore a published picoLLM model repo into a local artifact directory and run a one-prompt smoke test:
@@ -197,6 +228,8 @@ The GGUF export is still architecture-specific:
 Every accelerated speedrun now writes `run_manifest.json` into `PICOLLM_BASE_DIR` before the upload step so the archive has a machine-readable record of the repo commit, torch version, chosen speedrun config, identity source, and latest base/SFT checkpoint pointers.
 
 `speedrun.sh` is the reference script. It goes from dataset/tokenizer work through pretraining, pretrain eval, SFT, chat eval, report generation, and optional Hugging Face backup, then prints the next-step commands for CLI or web chat.
+
+If Hugging Face repo ids are configured but `HF_TOKEN` is missing, the run still finishes and prints the exact manual upload commands to run later.
 
 At launch it prints the detected hardware summary and the chosen speedrun settings so you can see exactly what it decided for the current machine.
 
