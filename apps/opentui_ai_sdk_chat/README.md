@@ -34,7 +34,7 @@ This app shows the parallel terminal story:
 - same model identity
 - same OpenAI-compatible contract
 
-That makes it a good bridge toward tools like Claude Code, Codex CLI, OpenCode, and Gemini CLI.
+It also makes the layout easy to compare with tools like Claude Code, Codex CLI, OpenCode, and Gemini CLI.
 
 The important caveat is:
 

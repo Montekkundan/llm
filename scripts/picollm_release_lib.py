@@ -244,7 +244,7 @@ Intended contents:
 - `identity_conversations.jsonl`
 - `run_manifest.json`
 
-This repo is for preservation, inspection, teaching artifacts, and resume-oriented backups.
+This repo stores the full training archive and resume artifacts.
 It may include optimizer shards and other training-only files that are intentionally excluded
 from the inference-focused model repo.
 
@@ -316,4 +316,3 @@ def stage_inference_bundle(base_dir: Path, repo_id: str, staging_dir: Path) -> d
     readme_path.write_text(render_model_readme(repo_id, metadata), encoding="utf-8")
     verify_layout(staging_dir)
     return metadata
-

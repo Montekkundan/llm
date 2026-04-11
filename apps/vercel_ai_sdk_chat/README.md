@@ -19,9 +19,9 @@ This app explains how a real web product consumes a model:
 - model served from an external endpoint
 - deployment of the web app independent from GPU hosting
 
-That split is important to understand:
+That split is the main deployment constraint:
 
-- Vercel is a great place to host the app
+- Vercel can host the app
 - the model itself usually lives somewhere else
 
 ## Backend requirement

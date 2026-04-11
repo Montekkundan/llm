@@ -53,5 +53,5 @@ Optional long-run sync:
 ```bash
 export HF_PERIODIC_SYNC=1
 export HF_ARCHIVE_REPO_ID=your-username/your-picollm-archive
-bash picollm/accelerated/speedrun.sh cli
+bash picollm/accelerated/speedrun.sh
 ```

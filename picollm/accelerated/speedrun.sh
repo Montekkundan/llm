@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-MODE="${1:-cli}"
-if [[ "$MODE" != "cli" && "$MODE" != "web" ]]; then
+POST_RUN_HINT="${1:-}"
+if [[ -n "$POST_RUN_HINT" && "$POST_RUN_HINT" != "cli" && "$POST_RUN_HINT" != "web" ]]; then
   echo "Usage: bash picollm/accelerated/speedrun.sh [cli|web]" >&2
   exit 1
 fi
@@ -52,6 +52,7 @@ if [[ "$HF_PERIODIC_SYNC" == "1" || "$HF_PERIODIC_SYNC" == "true" ]]; then
 fi
 
 PERIODIC_SYNC_PID=""
+HF_UPLOAD_STATUS="not configured"
 
 upload_to_hf() {
   local repo_id="$1"
@@ -145,17 +146,21 @@ print_run_summary() {
   local base_checkpoint_path
   local sft_checkpoint_path
   local report_path
+  local report_file_path
   local run_manifest_path
   base_checkpoint_path="$(latest_checkpoint_path "$PICOLLM_BASE_DIR/base_checkpoints")"
   sft_checkpoint_path="$(latest_checkpoint_path "$PICOLLM_BASE_DIR/chatsft_checkpoints")"
   report_path="$PICOLLM_BASE_DIR/report"
+  report_file_path="$report_path/report.md"
   run_manifest_path="$PICOLLM_BASE_DIR/run_manifest.json"
 
   echo
   echo "========== Run Summary =========="
   echo "Base checkpoint: ${base_checkpoint_path:-not found}"
   echo "SFT checkpoint: ${sft_checkpoint_path:-not found}"
-  if [[ -d "$report_path" ]]; then
+  if [[ -f "$report_file_path" ]]; then
+    echo "Report file: $report_file_path"
+  elif [[ -d "$report_path" ]]; then
     echo "Report path: $report_path"
   else
     echo "Report path: not found"
@@ -171,6 +176,50 @@ print_run_summary() {
   if [[ -n "$HF_ARCHIVE_REPO_ID" ]]; then
     echo "HF archive dataset: https://huggingface.co/datasets/$HF_ARCHIVE_REPO_ID"
   fi
+  echo "HF upload status: $HF_UPLOAD_STATUS"
+}
+
+print_next_steps() {
+  local cli_cmd="python -m picollm.accelerated.chat.cli -i sft"
+  local web_cmd="python -m picollm.accelerated.chat.web"
+  local smoke_cmd="python -m picollm.accelerated.chat.identity_smoke -i sft"
+  local model_upload_cmd="python scripts/upload_picollm_model_to_hf.py <namespace>/<model-repo> --base-dir \"$PICOLLM_BASE_DIR\""
+  local archive_upload_cmd="python scripts/upload_picollm_archive_to_hf.py <namespace>/<archive-dataset> --base-dir \"$PICOLLM_BASE_DIR\""
+
+  if [[ -n "$HF_UPLOAD_REPO_ID" ]]; then
+    model_upload_cmd="python scripts/upload_picollm_model_to_hf.py $HF_UPLOAD_REPO_ID --base-dir \"$PICOLLM_BASE_DIR\""
+  fi
+  if [[ -n "$HF_ARCHIVE_REPO_ID" ]]; then
+    archive_upload_cmd="python scripts/upload_picollm_archive_to_hf.py $HF_ARCHIVE_REPO_ID --base-dir \"$PICOLLM_BASE_DIR\""
+  fi
+
+  echo
+  echo "========== Next Steps =========="
+  if [[ "$POST_RUN_HINT" == "cli" ]]; then
+    echo "Requested post-run mode: CLI"
+  elif [[ "$POST_RUN_HINT" == "web" ]]; then
+    echo "Requested post-run mode: web"
+  fi
+  echo "CLI chat: $cli_cmd"
+  echo "Web chat: $web_cmd"
+  echo "Identity smoke check: $smoke_cmd"
+  if [[ -z "$HF_UPLOAD_REPO_ID" && -z "$HF_ARCHIVE_REPO_ID" ]]; then
+    echo "HF upload: skipped because no HF repo ids were configured."
+    echo "To upload later, set HF_TOKEN and run:"
+    echo "  $model_upload_cmd"
+    echo "  $archive_upload_cmd"
+  elif [[ -z "${HF_TOKEN:-}" ]]; then
+    echo "HF upload: repo ids were configured, but HF_TOKEN was not set."
+    echo "To upload later, export HF_TOKEN and run:"
+    if [[ -n "$HF_UPLOAD_REPO_ID" ]]; then
+      echo "  $model_upload_cmd"
+    fi
+    if [[ -n "$HF_ARCHIVE_REPO_ID" ]]; then
+      echo "  $archive_upload_cmd"
+    fi
+  fi
+  echo "To capture a full console log on a future run:"
+  echo "  bash picollm/accelerated/speedrun.sh |& tee \"$PICOLLM_BASE_DIR/speedrun.log\""
 }
 
 command -v uv >/dev/null 2>&1 || curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -204,7 +253,7 @@ if [[ -n "$HF_ARCHIVE_REPO_ID" ]]; then
   echo "HF upload target (archive dataset): $HF_ARCHIVE_REPO_ID"
 fi
 if [[ -n "$HF_UPLOAD_REPO_ID" && -n "$HF_ARCHIVE_REPO_ID" ]]; then
-  echo "HF destinations: model repo is for runnable artifacts, archive dataset is for fuller run history."
+  echo "HF destinations: model repo stores inference artifacts; archive dataset stores training history."
 fi
 if [[ "$HF_PERIODIC_SYNC" == "1" || "$HF_PERIODIC_SYNC" == "true" ]]; then
   echo "HF periodic archive sync: enabled"
@@ -291,23 +340,22 @@ print_stage "Report"
 python -m picollm.accelerated.report generate
 python scripts/write_picollm_run_manifest.py --base-dir "$PICOLLM_BASE_DIR" --identity-source "$IDENTITY_SOURCE"
 
+stop_periodic_archive_sync
 if [[ -n "$HF_UPLOAD_REPO_ID" || -n "$HF_ARCHIVE_REPO_ID" ]]; then
   print_stage "HF Upload"
-fi
-stop_periodic_archive_sync
-if [[ -n "$HF_UPLOAD_REPO_ID" ]]; then
-  upload_to_hf "$HF_UPLOAD_REPO_ID"
-fi
-if [[ -n "$HF_ARCHIVE_REPO_ID" ]]; then
-  upload_archive_to_hf "$HF_ARCHIVE_REPO_ID"
+  if [[ -z "${HF_TOKEN:-}" ]]; then
+    HF_UPLOAD_STATUS="skipped (HF_TOKEN not set)"
+    echo "HF upload skipped because HF_TOKEN is not set."
+  else
+    if [[ -n "$HF_UPLOAD_REPO_ID" ]]; then
+      upload_to_hf "$HF_UPLOAD_REPO_ID"
+    fi
+    if [[ -n "$HF_ARCHIVE_REPO_ID" ]]; then
+      upload_archive_to_hf "$HF_ARCHIVE_REPO_ID"
+    fi
+    HF_UPLOAD_STATUS="completed"
+  fi
 fi
 
 print_run_summary
-
-if [[ "$MODE" == "web" ]]; then
-  print_stage "Launch Web Chat"
-  exec python -m picollm.accelerated.chat.web
-else
-  print_stage "Launch CLI Chat"
-  exec python -m picollm.accelerated.chat.cli
-fi
+print_next_steps

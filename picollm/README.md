@@ -1,6 +1,6 @@
 # picoLLM
 
-`picollm/` is the serious from-scratch chatbot track in this repo.
+`picollm/` is the main from-scratch chatbot path in this repo.
 
 There is one canonical path now:
 
@@ -56,7 +56,7 @@ picollm/
 Train the full model:
 
 ```bash
-bash picollm/accelerated/speedrun.sh cli
+bash picollm/accelerated/speedrun.sh
 ```
 
 Run the API and browser UI after training:

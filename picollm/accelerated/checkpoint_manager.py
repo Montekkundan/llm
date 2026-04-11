@@ -22,8 +22,7 @@ def _checkpoint_help_message(base_dir, model_dir):
     source = "base" if model_dir == "base_checkpoints" else "sft"
     return (
         f"Expected picoLLM checkpoints under {checkpoints_dir}. "
-        "Run `bash picollm/accelerated/speedrun.sh cli` or "
-        "`bash picollm/accelerated/speedrun.sh web` to create them locally, "
+        "Run `bash picollm/accelerated/speedrun.sh` to create them locally, "
         "or restore a published model repo with "
         f"`python scripts/restore_picollm_from_hf.py <repo-id> --source {source}`."
     )

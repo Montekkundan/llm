@@ -8,7 +8,7 @@ import hashlib
 import json
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -53,7 +53,13 @@ def verify_hosted_asset(url: str, local_data: bytes, expected_sha256: str, expec
 
 def fetch_hosted_asset(url: str) -> bytes:
     try:
-        with urlopen(url) as response:
+        request = Request(
+            url,
+            headers={
+                "User-Agent": "Mozilla/5.0 (compatible; picoLLM-identity-verifier/1.0)",
+            },
+        )
+        with urlopen(request) as response:
             return response.read()
     except HTTPError as exc:
         raise SystemExit(f"Hosted identity asset returned HTTP {exc.code}: {url}") from exc

@@ -1,6 +1,6 @@
 # picoLLM Training Stack
 
-This package contains the single serious training and inference path for `picollm`.
+This package contains the main training and inference path for `picollm`.
 
 Docs:
 
@@ -40,14 +40,14 @@ Notes:
 - `HF_TOKEN` is recommended for Hugging Face downloads and rate limits. Public datasets may still work without it.
 - `uv sync --extra gpu` is the CUDA path.
 - `uv sync --extra cpu` is the local CPU or macOS path.
-- `speedrun.sh` is the single reference script. It now auto-detects visible CUDA GPU count, memory, capability, FA3/FP8 eligibility, batch size, activation checkpointing, and a safer attention window pattern.
-- `speedrun.sh` now starts with a distributed preflight that does a small synthetic forward/backward/optimizer smoke test on the same FA3/FP8/compile stack before dataset work begins.
+- `speedrun.sh` is the reference script. It auto-detects visible CUDA GPU count, memory, capability, FA3/FP8 eligibility, batch size, activation checkpointing, and an attention window pattern.
+- `speedrun.sh` starts with a distributed preflight that runs a small forward/backward/optimizer smoke test on the same FA3/FP8/compile stack before dataset work begins.
 - On Hopper-class boxes it keeps the fast defaults. On non-Hopper CUDA boxes it automatically disables FP8, forces SDPA, and switches to `window-pattern=L` so the run is slower but materially more portable.
 - Rebuild the environment with `uv sync --extra gpu` after pulling, because picoLLM now pins `torch==2.9.1` for this runtime path.
 - The default SFT identity data now comes from the repo-local `picollm/accelerated/data/identity_conversations.jsonl` instead of relying on a legacy external identity file.
 - The canonical identity dataset now ships with `picollm/accelerated/data/identity_conversations.manifest.json`, which records the row count, SHA-256 checksum, schema contract, and intended hosted mirror URL.
 - `HF_UPLOAD_REPO_ID` is optional. If set, the speedrun uploads the final runtime artifacts to a Hugging Face model repo.
-- `HF_ARCHIVE_REPO_ID` is optional. If set, the speedrun also uploads the fuller run archive to a Hugging Face dataset repo.
+- `HF_ARCHIVE_REPO_ID` is optional. If set, the speedrun also uploads the run archive to a Hugging Face dataset repo.
 - `HF_UPLOAD_PRIVATE=1` keeps that repo private by default.
 - `HF_PERIODIC_SYNC=1` enables the optional archive-sync loop during long runs.
 
@@ -72,13 +72,21 @@ Optional manual overrides if you need to pin a different configuration:
 If you want the end-to-end workflow on a fresh machine, use the speedrun script:
 
 ```bash
-bash picollm/accelerated/speedrun.sh cli
+bash picollm/accelerated/speedrun.sh
 ```
 
-Web UI instead of CLI:
+`speedrun.sh` now stops after training, evaluation, report generation, and optional uploads. It prints the next-step commands instead of opening chat automatically.
+
+Run CLI chat after training:
 
 ```bash
-bash picollm/accelerated/speedrun.sh web
+python -m picollm.accelerated.chat.cli -i sft
+```
+
+Run the web UI after training:
+
+```bash
+python -m picollm.accelerated.chat.web
 ```
 
 Smoke-test a running accelerated backend:
@@ -117,7 +125,7 @@ If you want `speedrun.sh` to consume the hosted identity mirror instead of the r
 
 ```bash
 export PICOLLM_IDENTITY_CONVERSATIONS_URL=https://assets.montek.dev/identity_conversations.jsonl
-bash picollm/accelerated/speedrun.sh cli
+bash picollm/accelerated/speedrun.sh
 ```
 
 Restore a published picoLLM model repo into a local artifact directory and run a one-prompt smoke test:
@@ -158,7 +166,7 @@ python scripts/upload_picollm_archive_to_hf.py your-username/your-picollm-archiv
 
 That archive repo is the resume-oriented path:
 
-- it keeps the fuller checkpoint trees, including optimizer shards when present
+- it keeps the full checkpoint trees, including optimizer shards when present
 - it is the right place for preservation, debugging, and training-state backups
 - it stays separate from the lighter inference repo on purpose
 
@@ -188,7 +196,7 @@ The GGUF export is still architecture-specific:
 
 Every accelerated speedrun now writes `run_manifest.json` into `PICOLLM_BASE_DIR` before the upload step so the archive has a machine-readable record of the repo commit, torch version, chosen speedrun config, identity source, and latest base/SFT checkpoint pointers.
 
-`speedrun.sh` is the single reference script. It goes from dataset/tokenizer work through pretraining, pretrain eval, SFT, chat eval, report generation, optional Hugging Face backup, and then opens the CLI or web chat UI.
+`speedrun.sh` is the reference script. It goes from dataset/tokenizer work through pretraining, pretrain eval, SFT, chat eval, report generation, and optional Hugging Face backup, then prints the next-step commands for CLI or web chat.
 
 At launch it prints the detected hardware summary and the chosen speedrun settings so you can see exactly what it decided for the current machine.
 
@@ -208,7 +216,7 @@ If `HF_UPLOAD_REPO_ID` is set, `speedrun.sh` will upload a curated set of runtim
 
 It does not upload the downloaded ClimbMix parquet shards under `base_data_climbmix/`, and it now filters optimizer shards out of the inference bundle by design.
 
-If `HF_ARCHIVE_REPO_ID` is also set, the dataset repo is the place for resume-training artifacts and fuller checkpoint history.
+If `HF_ARCHIVE_REPO_ID` is also set, the dataset repo is the place for resume-training artifacts and full checkpoint history.
 
 To restore those artifacts later onto another machine:
 

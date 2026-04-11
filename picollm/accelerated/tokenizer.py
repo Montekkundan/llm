@@ -326,7 +326,7 @@ def get_tokenizer():
         raise FileNotFoundError(
             f"Missing tokenizer directory at {tokenizer_dir}. "
             "Run `python -m picollm.accelerated.pretrain.train_tokenizer`, "
-            "`bash picollm/accelerated/speedrun.sh cli`, or restore a published model repo with "
+            "`bash picollm/accelerated/speedrun.sh`, or restore a published model repo with "
             "`python scripts/restore_picollm_from_hf.py <repo-id>`."
         )
     return RustBPETokenizer.from_directory(tokenizer_dir)
@@ -341,7 +341,7 @@ def get_token_bytes(device="cpu"):
         raise FileNotFoundError(
             f"Missing token bytes at {token_bytes_path}. "
             "Run `python -m picollm.accelerated.pretrain.train_tokenizer`, "
-            "`bash picollm/accelerated/speedrun.sh cli`, or restore a published model repo with "
+            "`bash picollm/accelerated/speedrun.sh`, or restore a published model repo with "
             "`python scripts/restore_picollm_from_hf.py <repo-id>`."
         )
     with open(token_bytes_path, "rb") as f:
