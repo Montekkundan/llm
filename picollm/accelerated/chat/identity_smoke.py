@@ -21,6 +21,19 @@ DEFAULT_PROMPTS = [
     "What project are you part of?",
 ]
 
+EXPECTED_PATTERNS = {
+    "Who are you?": (
+        re.compile(r"\bpicollm\b", re.IGNORECASE),
+    ),
+    "Who created you?": (
+        re.compile(r"\bmontek(?:\s+kundan)?\b", re.IGNORECASE),
+    ),
+    "What project are you part of?": (
+        re.compile(r"\bpicollm\b", re.IGNORECASE),
+        re.compile(r"llm from scratch and deploy", re.IGNORECASE),
+    ),
+}
+
 
 def find_forbidden_terms(text: str) -> list[str]:
     matches: list[str] = []
@@ -28,6 +41,15 @@ def find_forbidden_terms(text: str) -> list[str]:
         for match in pattern.finditer(text):
             matches.append(match.group(0))
     return matches
+
+
+def find_missing_expectations(prompt: str, text: str) -> list[str]:
+    patterns = EXPECTED_PATTERNS.get(prompt, ())
+    if not patterns:
+        return []
+    if any(pattern.search(text) for pattern in patterns):
+        return []
+    return [pattern.pattern for pattern in patterns]
 
 
 def dataset_check(data_file: Path) -> None:
@@ -116,10 +138,15 @@ def main(argv=None) -> int:
     for prompt in DEFAULT_PROMPTS:
         answer = generate_answer(engine, tokenizer, prompt, max_tokens=args.max_tokens, seed=args.seed)
         forbidden_terms = find_forbidden_terms(answer)
+        missing_expectations = find_missing_expectations(prompt, answer)
         print(f"Q: {prompt}")
         print(f"A: {answer}\n")
         if forbidden_terms:
             failures.append(f"{prompt} -> {', '.join(sorted(set(term.lower() for term in forbidden_terms)))}")
+        if missing_expectations:
+            failures.append(
+                f"{prompt} -> missing expected identity terms matching: {', '.join(missing_expectations)}"
+            )
 
     if failures:
         raise SystemExit("Branding smoke test failed:\n" + "\n".join(failures))

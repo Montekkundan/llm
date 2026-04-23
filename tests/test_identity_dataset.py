@@ -25,6 +25,15 @@ def load_verify_identity_asset_module():
     return module
 
 
+def load_identity_smoke_module():
+    module_path = REPO_ROOT / "picollm" / "accelerated" / "chat" / "identity_smoke.py"
+    spec = importlib.util.spec_from_file_location("identity_smoke", module_path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
+
+
 class IdentityDatasetTests(unittest.TestCase):
     def test_customjson_loads_expected_number_of_rows(self):
         dataset = CustomJSON(filepath=str(DATA_FILE))
@@ -45,6 +54,31 @@ class IdentityDatasetTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
         self.assertIn("dataset: ok (1000 rows", result.stdout)
+
+    def test_identity_smoke_requires_positive_identity_terms(self):
+        identity_smoke = load_identity_smoke_module()
+
+        self.assertEqual(
+            identity_smoke.find_missing_expectations(
+                "Who created you?",
+                "Montek Kundan created picoLLM.",
+            ),
+            [],
+        )
+        self.assertNotEqual(
+            identity_smoke.find_missing_expectations(
+                "Who created you?",
+                "A team of researchers created me.",
+            ),
+            [],
+        )
+        self.assertEqual(
+            identity_smoke.find_missing_expectations(
+                "What project are you part of?",
+                "I am part of picoLLM in the LLM From Scratch and Deploy repo.",
+            ),
+            [],
+        )
 
     def test_manifest_matches_canonical_dataset(self):
         manifest = json.loads(MANIFEST_FILE.read_text(encoding="utf-8"))
