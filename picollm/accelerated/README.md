@@ -4,6 +4,7 @@ This package contains the main training and inference path for `picollm`.
 
 Docs:
 
+- [../../RUN_PICOLLM.md](../../RUN_PICOLLM.md)
 - [docs/local_smoke.md](./docs/local_smoke.md)
 - [docs/branding_identity.md](./docs/branding_identity.md)
 - [docs/rerun_sft_only.md](./docs/rerun_sft_only.md)
@@ -46,6 +47,7 @@ Notes:
 - Rebuild the environment with `uv sync --extra gpu` after pulling, because picoLLM now pins `torch==2.9.1` for this runtime path.
 - The default SFT identity data now comes from the repo-local `picollm/accelerated/data/identity_conversations.jsonl` instead of relying on a legacy external identity file.
 - The canonical identity dataset now ships with `picollm/accelerated/data/identity_conversations.manifest.json`, which records the row count, SHA-256 checksum, schema contract, and intended hosted mirror URL.
+- The SFT mixture now repeats the identity dataset `24x` by default via `--identity-epochs` so runtime branding is less likely to wash out behind the broader chat mixture.
 - `HF_UPLOAD_REPO_ID` is optional. If set, the speedrun uploads the final runtime artifacts to a Hugging Face model repo.
 - `HF_ARCHIVE_REPO_ID` is optional. If set, the speedrun also uploads the run archive to a Hugging Face dataset repo.
 - `HF_UPLOAD_PRIVATE=1` keeps that repo private by default.
@@ -93,6 +95,10 @@ Optional manual overrides if you need to pin a different configuration:
 - `HF_SYNC_MIN_FILE_AGE_SECONDS`
 
 ## Full Run
+
+If you want the shortest student path for a published Hugging Face model or an already-trained local picoLLM checkpoint, use:
+
+- [../../RUN_PICOLLM.md](../../RUN_PICOLLM.md)
 
 If you want the end-to-end workflow on a fresh machine, use the speedrun script:
 

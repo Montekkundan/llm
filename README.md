@@ -28,6 +28,10 @@ Then use this workflow:
 3. Open the linked notebook or script from this repo.
 4. For the main from-scratch chatbot path, follow `picollm/accelerated/README.md`.
 
+If you want the fastest student runtime path for a published Hugging Face model or your own trained picoLLM checkpoints, start with:
+
+- [RUN_PICOLLM.md](./RUN_PICOLLM.md)
+
 For the main chatbot path, start with:
 
 - [picollm/accelerated/README.md](./picollm/accelerated/README.md)
@@ -55,6 +59,7 @@ Use these directories by purpose:
 
 For the final lecture sequence:
 
+- [RUN_PICOLLM.md](./RUN_PICOLLM.md)
 - [picollm/accelerated/README.md](./picollm/accelerated/README.md)
 - [picollm/accelerated/speedrun.sh](./picollm/accelerated/speedrun.sh)
 - [prompts/real_chatbot_workflow/base_vs_chat_sft_prompts.md](./prompts/real_chatbot_workflow/base_vs_chat_sft_prompts.md)

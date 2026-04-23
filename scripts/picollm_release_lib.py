@@ -174,7 +174,7 @@ def build_model_metadata(base_dir: Path, repo_id: str) -> dict[str, object]:
             "identity_dataset_source": run_manifest.get("identity_dataset_path"),
             "detected_hardware": run_manifest.get("detected_hardware"),
             "speedrun_settings": run_manifest.get("speedrun_settings"),
-            "hf_model_repo_id": run_manifest.get("hf_model_repo_id"),
+            "hf_model_repo_id": repo_id,
             "hf_archive_repo_id": run_manifest.get("hf_archive_repo_id"),
         }
     return metadata
@@ -189,7 +189,17 @@ def render_model_readme(repo_id: str, metadata: dict[str, object]) -> str:
         "uv sync --extra gpu\n"
         f"python scripts/restore_picollm_from_hf.py {repo_id}"
     )
-    return f"""# picoLLM Runtime Artifacts
+    return f"""---
+license: mit
+pipeline_tag: text-generation
+tags:
+- picollm
+- custom-runtime
+- text-generation
+- conversational
+---
+
+# picoLLM Runtime Artifacts
 
 This repo contains the inference-focused artifact set produced by a `picollm/accelerated/speedrun.sh` run.
 
@@ -207,6 +217,14 @@ This repo contains the inference-focused artifact set produced by a `picollm/acc
 - restore the bundle into `PICOLLM_BASE_DIR`
 - run `python -m picollm.accelerated.chat.cli -i {preferred_source}`
 - run `python -m picollm.accelerated.chat.web -i {preferred_source}`
+
+## Demo
+
+- Hugging Face Space: [montekkundan/picollm-v1-demo](https://huggingface.co/spaces/montekkundan/picollm-v1-demo)
+
+## Learn More
+
+- Build notes and deployment walkthrough: [How to Create a LLM from scratch and deploy it](https://lectures.montek.dev/LLM/How+to+Create+a+LLM+from+scratch+and+deploy+it)
 
 ## Known Limitations
 
