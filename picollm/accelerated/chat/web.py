@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import AsyncGenerator, Callable, List, Optional
 
 import torch
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 
@@ -239,6 +239,12 @@ def create_app(
             chunks.append(piece)
         return "".join(chunks)
 
+    async def is_client_disconnected(http_request: Request) -> bool:
+        try:
+            return await http_request.is_disconnected()
+        except RuntimeError:
+            return True
+
     @app.get("/", response_class=HTMLResponse)
     async def root():
         ui_html_path = get_assets_dir() / "ui.html"
@@ -292,7 +298,7 @@ def create_app(
         return {"data": [{"id": args.model_id, "object": "model"}]}
 
     @app.post("/chat/completions")
-    async def chat_completions(request: ChatRequest):
+    async def chat_completions(request: ChatRequest, http_request: Request):
         worker_pool = app.state.worker_pool
         worker = await worker_pool.acquire_worker()
         response_chunks: list[str] = []
@@ -304,10 +310,18 @@ def create_app(
 
         async def stream_and_release():
             try:
+                if await is_client_disconnected(http_request):
+                    return
                 async for piece in generate_text_stream(worker, prompt_tokens, settings):
+                    if await is_client_disconnected(http_request):
+                        logger.info("[gpu %s] client disconnected during stream", worker.gpu_id)
+                        break
                     response_chunks.append(piece)
                     yield f"data: {json.dumps({'token': piece, 'gpu': worker.gpu_id}, ensure_ascii=False)}\n\n"
-                yield f"data: {json.dumps({'done': True})}\n\n"
+                if not await is_client_disconnected(http_request):
+                    yield f"data: {json.dumps({'done': True})}\n\n"
+            except (asyncio.CancelledError, BrokenPipeError, ConnectionResetError):
+                logger.info("[gpu %s] stream cancelled by client", worker.gpu_id)
             finally:
                 logger.info("[gpu %s] %s", worker.gpu_id, "".join(response_chunks))
                 await worker_pool.release_worker(worker)
@@ -315,7 +329,7 @@ def create_app(
         return StreamingResponse(stream_and_release(), media_type="text/event-stream")
 
     @app.post("/v1/chat/completions")
-    async def openai_chat_completions(request: ChatRequest):
+    async def openai_chat_completions(request: ChatRequest, http_request: Request):
         worker_pool = app.state.worker_pool
         worker = await worker_pool.acquire_worker()
         completion_id = f"chatcmpl-{uuid.uuid4().hex[:24]}"
@@ -331,21 +345,29 @@ def create_app(
             async def openai_stream_and_release():
                 pieces: list[str] = []
                 try:
+                    if await is_client_disconnected(http_request):
+                        return
                     yield "data: " + json.dumps(
                         openai_chunk_payload(completion_id, model_id, created, {"role": "assistant"}, None),
                         ensure_ascii=False,
                     ) + "\n\n"
                     async for piece in generate_text_stream(worker, prompt_tokens, settings):
+                        if await is_client_disconnected(http_request):
+                            logger.info("[gpu %s] client disconnected during OpenAI stream", worker.gpu_id)
+                            break
                         pieces.append(piece)
                         yield "data: " + json.dumps(
                             openai_chunk_payload(completion_id, model_id, created, {"content": piece}, None),
                             ensure_ascii=False,
                         ) + "\n\n"
-                    yield "data: " + json.dumps(
-                        openai_chunk_payload(completion_id, model_id, created, {}, "stop"),
-                        ensure_ascii=False,
-                    ) + "\n\n"
-                    yield "data: [DONE]\n\n"
+                    if not await is_client_disconnected(http_request):
+                        yield "data: " + json.dumps(
+                            openai_chunk_payload(completion_id, model_id, created, {}, "stop"),
+                            ensure_ascii=False,
+                        ) + "\n\n"
+                        yield "data: [DONE]\n\n"
+                except (asyncio.CancelledError, BrokenPipeError, ConnectionResetError):
+                    logger.info("[gpu %s] OpenAI stream cancelled by client", worker.gpu_id)
                 finally:
                     logger.info("[gpu %s] %s", worker.gpu_id, "".join(pieces))
                     await worker_pool.release_worker(worker)

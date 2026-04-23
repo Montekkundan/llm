@@ -118,6 +118,21 @@
             border-color: #d1d5db;
         }
 
+        .header-chip-btn.stop-btn {
+            border-color: #fecaca;
+            color: #b91c1c;
+        }
+
+        .header-chip-btn.stop-btn:hover:not(:disabled) {
+            background-color: #fef2f2;
+            border-color: #fca5a5;
+        }
+
+        .header-chip-btn:disabled {
+            opacity: 0.55;
+            cursor: default;
+        }
+
         .chat-container {
             flex: 1;
             overflow-y: auto;
@@ -156,9 +171,17 @@
 
         .message-shell {
             display: flex;
+            flex-direction: column;
             align-items: flex-start;
-            gap: 0.5rem;
+            gap: 0.35rem;
             max-width: 100%;
+        }
+
+        .message.user .message-shell {
+            align-items: flex-end;
+            width: fit-content;
+            max-width: 65%;
+            margin-left: auto;
         }
 
         .message.assistant .message-content {
@@ -179,7 +202,7 @@
             background-color: #f3f4f6;
             border-radius: 1.25rem;
             padding: 0.8rem 1rem;
-            max-width: 65%;
+            max-width: 100%;
             cursor: pointer;
             transition: background-color 0.2s ease;
         }
@@ -207,6 +230,13 @@
             font-size: 0.8rem;
             cursor: pointer;
             transition: all 0.2s ease;
+            margin-left: 0.5rem;
+        }
+
+        .message.user .message-copy-btn {
+            align-self: flex-end;
+            margin-left: 0;
+            margin-right: 0.2rem;
         }
 
         .message-copy-btn:hover {
@@ -218,6 +248,11 @@
         .message-copy-btn:disabled {
             opacity: 0.55;
             cursor: default;
+        }
+
+        .message-copy-btn.hidden {
+            visibility: hidden;
+            pointer-events: none;
         }
 
         .input-container {
@@ -334,6 +369,16 @@
         .send-button:hover:not(:disabled) {
             background-color: #2563eb;
             border-color: #2563eb;
+        }
+
+        .send-button.stop-mode {
+            background-color: #b91c1c;
+            border-color: #b91c1c;
+        }
+
+        .send-button.stop-mode:hover:not(:disabled) {
+            background-color: #991b1b;
+            border-color: #991b1b;
         }
 
         .send-button:disabled {
@@ -533,6 +578,7 @@
             <h1>picoLLM</h1>
         </div>
         <div class="header-actions">
+            <button id="stopButton" class="header-chip-btn stop-btn" onclick="stopGeneration()" disabled>Stop</button>
             <button class="header-chip-btn" onclick="newConversation()">Clear</button>
             <button class="settings-btn" onclick="openSettings()">Settings</button>
         </div>
@@ -646,6 +692,7 @@
         const chatWrapper = document.getElementById('chatWrapper');
         const chatInput = document.getElementById('chatInput');
         const sendButton = document.getElementById('sendButton');
+        const stopButton = document.getElementById('stopButton');
         const settingsDrawer = document.getElementById('settingsDrawer');
         const connectionStatusText = document.getElementById('connectionStatusText');
         const modelSummaryText = document.getElementById('modelSummaryText');
@@ -662,6 +709,17 @@
         const topPInput = document.getElementById('topPInput');
         const maxTokensInput = document.getElementById('maxTokensInput');
         const seedInput = document.getElementById('seedInput');
+        const SEND_ICON = `
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M22 2L11 13"></path>
+                <path d="M22 2l-7 20-4-9-9-4 20-7z"></path>
+            </svg>
+        `;
+        const STOP_ICON = `
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <rect x="7" y="7" width="10" height="10" rx="1.5"></rect>
+            </svg>
+        `;
 
         const PRESETS = {
             balanced: { temperature: 0.8, topK: 50, topP: null, maxTokens: 512, seed: null },
@@ -701,6 +759,9 @@
         let currentSeed = defaultGenerationSettings.seed;
         let generationStatus = 'Idle';
         let generationStatusVariant = '';
+        let generationAbortController = null;
+        let generationSettledPromise = null;
+        let resolveGenerationSettled = null;
 
         function clamp(value, min, max) {
             return Math.min(max, Math.max(min, value));
@@ -716,6 +777,15 @@
             if (value === '') return null;
             const parsed = parseInt(value, 10);
             return Number.isFinite(parsed) ? parsed : null;
+        }
+
+        function updateComposerState() {
+            sendButton.disabled = !isGenerating && !chatInput.value.trim();
+            stopButton.disabled = !isGenerating;
+            sendButton.classList.toggle('stop-mode', isGenerating);
+            sendButton.innerHTML = isGenerating ? STOP_ICON : SEND_ICON;
+            sendButton.title = isGenerating ? 'Stop generation' : 'Send message';
+            sendButton.setAttribute('aria-label', isGenerating ? 'Stop generation' : 'Send message');
         }
 
         function applySettingsToInputs() {
@@ -766,11 +836,38 @@
             }
         }
 
+        function legacyCopyText(text) {
+            const helper = document.createElement('textarea');
+            helper.value = text;
+            helper.setAttribute('readonly', '');
+            helper.style.position = 'fixed';
+            helper.style.top = '-1000px';
+            helper.style.left = '-1000px';
+            helper.style.opacity = '0';
+            document.body.appendChild(helper);
+            helper.focus();
+            helper.select();
+            helper.setSelectionRange(0, helper.value.length);
+            let copied = false;
+            try {
+                copied = document.execCommand('copy');
+            } catch {
+                copied = false;
+            } finally {
+                document.body.removeChild(helper);
+            }
+            return copied;
+        }
+
         async function copyText(text, successLabel = 'Copied') {
             const previousStatus = generationStatus;
             const previousVariant = generationStatusVariant;
             try {
-                await navigator.clipboard.writeText(text);
+                if (navigator.clipboard && window.isSecureContext) {
+                    await navigator.clipboard.writeText(text);
+                } else if (!legacyCopyText(text)) {
+                    throw new Error('fallback copy failed');
+                }
                 setGenerationStatus(successLabel, 'active');
                 window.setTimeout(() => {
                     if (generationStatus === successLabel) {
@@ -778,7 +875,16 @@
                     }
                 }, 1200);
             } catch {
-                setGenerationStatus('Copy failed', 'alert');
+                if (legacyCopyText(text)) {
+                    setGenerationStatus(successLabel, 'active');
+                    window.setTimeout(() => {
+                        if (generationStatus === successLabel) {
+                            setGenerationStatus(previousStatus, previousVariant);
+                        }
+                    }, 1200);
+                } else {
+                    setGenerationStatus('Copy failed', 'alert');
+                }
             }
         }
 
@@ -941,7 +1047,7 @@
         chatInput.addEventListener('input', function() {
             this.style.height = 'auto';
             this.style.height = Math.min(this.scrollHeight, 200) + 'px';
-            sendButton.disabled = !this.value.trim() || isGenerating;
+            updateComposerState();
         });
 
         function handleKeyDown(event) {
@@ -955,24 +1061,66 @@
             // Ctrl+Shift+N for new conversation
             if (event.ctrlKey && event.shiftKey && event.key === 'N') {
                 event.preventDefault();
-                if (!isGenerating) {
-                    newConversation();
-                }
+                newConversation();
+            } else if (event.key === 'Escape' && isGenerating) {
+                event.preventDefault();
+                stopGeneration();
             } else if (event.key === 'Escape' && document.body.classList.contains('settings-open')) {
                 event.preventDefault();
                 closeSettings();
             }
         });
 
-        function newConversation() {
+        function beginGenerationLifecycle() {
+            isGenerating = true;
+            generationAbortController = new AbortController();
+            generationSettledPromise = new Promise((resolve) => {
+                resolveGenerationSettled = resolve;
+            });
+            updateComposerState();
+        }
+
+        function endGenerationLifecycle() {
+            isGenerating = false;
+            generationAbortController = null;
+            updateComposerState();
+            if (resolveGenerationSettled !== null) {
+                resolveGenerationSettled();
+                resolveGenerationSettled = null;
+            }
+            generationSettledPromise = null;
+        }
+
+        async function stopGeneration() {
+            if (!isGenerating) return;
+            setGenerationStatus('Stopping...', 'alert');
+            generationAbortController?.abort();
+            if (generationSettledPromise !== null) {
+                await generationSettledPromise;
+            }
+        }
+
+        async function newConversation() {
+            if (isGenerating) {
+                await stopGeneration();
+            }
             messages = [];
             chatWrapper.innerHTML = '';
             chatInput.value = '';
             chatInput.style.height = 'auto';
-            sendButton.disabled = true;
-            isGenerating = false;
             setGenerationStatus('Idle');
+            updateComposerState();
             chatInput.focus();
+        }
+
+        function attachAssistantInteractions(contentDiv, messageIndex) {
+            contentDiv.setAttribute('data-message-index', messageIndex);
+            contentDiv.setAttribute('title', 'Click to regenerate this response');
+            contentDiv.addEventListener('click', function() {
+                if (!isGenerating) {
+                    regenerateMessage(messageIndex);
+                }
+            });
         }
 
         function addMessage(role, content, messageIndex = null) {
@@ -982,6 +1130,8 @@
             const contentDiv = document.createElement('div');
             contentDiv.className = 'message-content';
             contentDiv.textContent = content;
+            const shellDiv = document.createElement('div');
+            shellDiv.className = 'message-shell';
 
             // Add click handler for user messages to enable editing
             if (role === 'user' && messageIndex !== null) {
@@ -996,28 +1146,31 @@
 
             // Add click handler for assistant messages to enable regeneration
             let copyButton = null;
-            if (role === 'assistant') {
-                const shellDiv = document.createElement('div');
-                shellDiv.className = 'message-shell';
+            if (role === 'assistant' || role === 'user') {
                 copyButton = document.createElement('button');
                 copyButton.className = 'message-copy-btn';
                 copyButton.type = 'button';
                 copyButton.textContent = 'Copy';
                 copyButton.disabled = !content;
+                if (role === 'assistant' && !content) {
+                    copyButton.classList.add('hidden');
+                }
                 copyButton.addEventListener('click', async function(event) {
                     event.stopPropagation();
                     const text = contentDiv.textContent.trim();
                     if (!text) return;
-                    await copyText(text, 'Copied reply');
+                    await copyText(text, role === 'assistant' ? 'Copied reply' : 'Copied prompt');
                 });
                 if (messageIndex !== null) {
-                    contentDiv.setAttribute('data-message-index', messageIndex);
-                    contentDiv.setAttribute('title', 'Click to regenerate this response');
-                    contentDiv.addEventListener('click', function() {
-                        if (!isGenerating) {
-                            regenerateMessage(messageIndex);
-                        }
-                    });
+                    if (role === 'assistant') {
+                        contentDiv.setAttribute('data-message-index', messageIndex);
+                        contentDiv.setAttribute('title', 'Click to regenerate this response');
+                        contentDiv.addEventListener('click', function() {
+                            if (!isGenerating) {
+                                regenerateMessage(messageIndex);
+                            }
+                        });
+                    }
                 }
                 shellDiv.appendChild(contentDiv);
                 shellDiv.appendChild(copyButton);
@@ -1053,17 +1206,17 @@
             }
 
             // Enable send button and focus input
-            sendButton.disabled = false;
+            updateComposerState();
             chatInput.focus();
         }
 
         async function generateAssistantResponse() {
-            isGenerating = true;
-            sendButton.disabled = true;
+            beginGenerationLifecycle();
             setGenerationStatus('Generating...', 'active');
 
             const { contentDiv: assistantContent, copyButton: assistantCopyButton } = addMessage('assistant', '');
             assistantContent.innerHTML = '<span class="typing-indicator"></span>';
+            let fullResponse = '';
 
             try {
                 const response = await fetch(`${API_URL}/chat/completions`, {
@@ -1071,6 +1224,7 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
+                    signal: generationAbortController.signal,
                     body: JSON.stringify({
                         messages: messages,
                         temperature: currentTemperature,
@@ -1096,7 +1250,6 @@
 
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
-                let fullResponse = '';
                 let streamedChunks = 0;
                 assistantContent.textContent = '';
 
@@ -1126,30 +1279,39 @@
 
                 const assistantMessageIndex = messages.length;
                 messages.push({ role: 'assistant', content: fullResponse });
-
-                // Add click handler to regenerate this assistant message
-                assistantContent.setAttribute('data-message-index', assistantMessageIndex);
-                assistantContent.setAttribute('title', 'Click to regenerate this response');
-                assistantContent.addEventListener('click', function() {
-                    if (!isGenerating) {
-                        regenerateMessage(assistantMessageIndex);
-                    }
-                });
+                attachAssistantInteractions(assistantContent, assistantMessageIndex);
                 if (assistantCopyButton !== null) {
                     assistantCopyButton.disabled = fullResponse.trim().length === 0;
+                    assistantCopyButton.classList.toggle('hidden', fullResponse.trim().length === 0);
                 }
                 setGenerationStatus(fullResponse.trim() ? 'Ready' : 'Empty reply');
 
             } catch (error) {
                 console.error('Error:', error);
-                assistantContent.innerHTML = `<div class="error-message">Error: ${error.message}</div>`;
-                if (assistantCopyButton !== null) {
-                    assistantCopyButton.disabled = true;
+                if (error.name === 'AbortError') {
+                    if (fullResponse.trim()) {
+                        assistantContent.textContent = fullResponse;
+                        const assistantMessageIndex = messages.length;
+                        messages.push({ role: 'assistant', content: fullResponse });
+                        attachAssistantInteractions(assistantContent, assistantMessageIndex);
+                        if (assistantCopyButton !== null) {
+                            assistantCopyButton.disabled = false;
+                            assistantCopyButton.classList.remove('hidden');
+                        }
+                    } else {
+                        assistantContent.closest('.message')?.remove();
+                    }
+                    setGenerationStatus('Stopped');
+                } else {
+                    assistantContent.innerHTML = `<div class="error-message">Error: ${error.message}</div>`;
+                    if (assistantCopyButton !== null) {
+                        assistantCopyButton.disabled = true;
+                        assistantCopyButton.classList.add('hidden');
+                    }
+                    setGenerationStatus('Generation failed', 'alert');
                 }
-                setGenerationStatus('Generation failed', 'alert');
             } finally {
-                isGenerating = false;
-                sendButton.disabled = !chatInput.value.trim();
+                endGenerationLifecycle();
             }
         }
 
@@ -1173,7 +1335,7 @@
             await generateAssistantResponse();
         }
 
-        function handleSlashCommand(command) {
+        async function handleSlashCommand(command) {
             const parts = command.trim().split(/\s+/);
             const cmd = parts[0].toLowerCase();
             const arg = parts[1];
@@ -1259,7 +1421,10 @@
                 }
                 return true;
             } else if (cmd === '/clear') {
-                newConversation();
+                await newConversation();
+                return true;
+            } else if (cmd === '/stop') {
+                await stopGeneration();
                 return true;
             } else if (cmd === '/help') {
                 addMessage('console',
@@ -1274,6 +1439,7 @@
                     '/maxtokens <value> - Set max tokens (1-4096)\n' +
                     '/seed - Show current seed\n' +
                     '/seed <value> - Set seed\n' +
+                    '/stop - Stop active generation\n' +
                     '/clear - Clear conversation\n' +
                     '/help - Show this help message'
                 );
@@ -1283,14 +1449,19 @@
         }
 
         async function sendMessage() {
+            if (isGenerating) {
+                await stopGeneration();
+                return;
+            }
             const message = chatInput.value.trim();
-            if (!message || isGenerating) return;
+            if (!message) return;
 
             // Handle slash commands
             if (message.startsWith('/')) {
                 chatInput.value = '';
                 chatInput.style.height = 'auto';
-                handleSlashCommand(message);
+                await handleSlashCommand(message);
+                updateComposerState();
                 return;
             }
 
@@ -1304,7 +1475,7 @@
             await generateAssistantResponse();
         }
 
-        sendButton.disabled = !chatInput.value.trim();
+        updateComposerState();
 
         // Autofocus the chat input on page load
         chatInput.focus();
